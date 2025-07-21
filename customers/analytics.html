@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Analytics - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link rel="stylesheet" href="./css/customers.css">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/recovery.html">
+                            <i class="fas fa-tools"></i> V3 Recovery
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/templates.html">
+                            <i class="fas fa-file-alt"></i> Templates
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/analytics.html" class="active">
+                            <i class="fas fa-chart-bar"></i> Customer Analytics
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-title">
+                    <h2>Customer Analytics</h2>
+                    <p>Comprehensive insights into customer behavior and trends</p>
+                </div>
+                <div class="page-actions">
+                    <select id="period-selector" class="filter-select">
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d" selected>Last 30 days</option>
+                        <option value="90d">Last 90 days</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <button id="btn-refresh-analytics" class="btn btn-secondary">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Date Range (hidden by default) -->
+            <div id="custom-date-range" class="filters-section" style="display: none;">
+                <div class="date-filters">
+                    <label>From:</label>
+                    <input type="date" id="custom-date-from" class="date-input">
+                    <label>To:</label>
+                    <input type="date" id="custom-date-to" class="date-input">
+                    <button id="btn-apply-custom-range" class="btn btn-primary btn-sm">Apply</button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="analytics-loading" class="loading-state" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Loading analytics data...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="analytics-error" class="error-state" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h3>Error Loading Analytics</h3>
+                <p id="analytics-error-message">Failed to load analytics data.</p>
+                <button id="btn-retry-analytics" class="btn btn-primary">Retry</button>
+            </div>
+
+            <!-- Analytics Content -->
+            <div id="analytics-content" style="display: none;">
+                <!-- Overview Metrics -->
+                <div class="analytics-overview">
+                    <h3>Overview</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">👥</div>
+                            <div class="metric-value" id="total-customers-metric">-</div>
+                            <div class="metric-label">Total Customers</div>
+                            <div class="metric-change" id="total-customers-change"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">➕</div>
+                            <div class="metric-value" id="new-customers-metric">-</div>
+                            <div class="metric-label">New Customers</div>
+                            <div class="metric-change" id="new-customers-change"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">💰</div>
+                            <div class="metric-value" id="mrr-metric">-</div>
+                            <div class="metric-label">Monthly Recurring Revenue</div>
+                            <div class="metric-change" id="mrr-change"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">📉</div>
+                            <div class="metric-value" id="churn-rate-metric">-</div>
+                            <div class="metric-label">Churn Rate</div>
+                            <div class="metric-change" id="churn-rate-change"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">💎</div>
+                            <div class="metric-value" id="avg-ltv-metric">-</div>
+                            <div class="metric-label">Avg. Lifetime Value</div>
+                            <div class="metric-change" id="avg-ltv-change"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">❤️</div>
+                            <div class="metric-value" id="avg-health-metric">-</div>
+                            <div class="metric-label">Avg. Health Score</div>
+                            <div class="metric-change" id="avg-health-change"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-section">
+                    <div class="charts-grid">
+                        <!-- Customer Growth Chart -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Customer Growth</h4>
+                                <p>New customers over time</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="growth-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Revenue Trend Chart -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Revenue Trends</h4>
+                                <p>Monthly recurring revenue</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="revenue-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Subscription Status Chart -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Subscription Status</h4>
+                                <p>Distribution of subscription statuses</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="subscription-status-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Health Score Distribution -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Health Score Distribution</h4>
+                                <p>Customer health score breakdown</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="health-distribution-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Top Products by Revenue -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Revenue by Product</h4>
+                                <p>Top performing products</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="product-revenue-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- LTV Distribution -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4>Lifetime Value Distribution</h4>
+                                <p>Customer LTV ranges</p>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="ltv-distribution-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Tables -->
+                <div class="data-tables-section">
+                    <!-- At Risk Customers Table -->
+                    <div class="data-table-container">
+                        <div class="table-header">
+                            <h4>🚨 High Risk Customers</h4>
+                            <p>Customers with churn risk > 70%</p>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="at-risk-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Email</th>
+                                        <th>Health Score</th>
+                                        <th>Churn Risk</th>
+                                        <th>LTV</th>
+                                        <th>Active Subs</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="at-risk-empty" class="table-empty-state" style="display: none;">
+                            <p>✅ No high-risk customers found!</p>
+                        </div>
+                    </div>
+
+                    <!-- Top Customers Table -->
+                    <div class="data-table-container">
+                        <div class="table-header">
+                            <h4>⭐ Top Customers</h4>
+                            <p>Highest value customers by LTV</p>
+                        </div>
+                        <div class="table-wrapper">
+                            <table id="top-customers-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Email</th>
+                                        <th>Health Score</th>
+                                        <th>Churn Risk</th>
+                                        <th>LTV</th>
+                                        <th>Active Subs</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="top-customers-empty" class="table-empty-state" style="display: none;">
+                            <p>No customer data available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="./js/services/customerApi.js"></script>
+    <script src="./js/utils/customerUtils.js"></script>
+    <script src="./js/components/analyticsCharts.js"></script>
+    <script src="./js/analytics.js"></script>
+    
+    <script>
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>

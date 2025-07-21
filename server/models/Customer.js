@@ -39,10 +39,14 @@ class Customer {
             if (status) {
                 if (status === 'active') {
                     whereClause += ' AND c.deleted = false AND c.delinquent = false';
-                } else if (status === 'delinquent') {
+                } else if (status === 'past_due' || status === 'delinquent') {
                     whereClause += ' AND c.delinquent = true';
-                } else if (status === 'deleted') {
+                } else if (status === 'canceled' || status === 'deleted') {
                     whereClause += ' AND c.deleted = true';
+                } else if (status === 'at_risk') {
+                    // Filter customers with churn risk > 60%
+                    whereClause += ' AND c.deleted = false';
+                    // We'll add a HAVING clause later for churn_risk_score > 0.6
                 }
             }
 
@@ -98,8 +102,23 @@ class Customer {
                 LIMIT ${limit} OFFSET ${offset}
             `;
 
-            const [totalResult] = await executeQuery(adminPool, countQuery, params);
-            const customers = await executeQuery(adminPool, dataQuery, params);
+            let [totalResult] = await executeQuery(adminPool, countQuery, params);
+            let customers = await executeQuery(adminPool, dataQuery, params);
+
+            // Handle at_risk filtering (post-query filtering for simplicity)
+            if (status === 'at_risk') {
+                customers = customers.filter(customer => 
+                    (customer.churn_risk_score || 0.5) > 0.6
+                );
+                
+                // Recalculate total for at_risk customers
+                const allCustomersQuery = dataQuery.replace(`LIMIT ${limit} OFFSET ${offset}`, '');
+                const allCustomers = await executeQuery(adminPool, allCustomersQuery, params);
+                const atRiskCustomers = allCustomers.filter(customer => 
+                    (customer.churn_risk_score || 0.5) > 0.6
+                );
+                totalResult = { total: atRiskCustomers.length };
+            }
 
             const total = totalResult.total;
             const totalPages = Math.ceil(total / limit);
@@ -117,6 +136,89 @@ class Customer {
             };
         } catch (error) {
             logger.error('Error finding customers:', error);
+            throw error;
+        }
+    }
+
+    static async getFilteredStats(filters = {}) {
+        try {
+            const { search, status, dateFrom, dateTo } = filters;
+            
+            let whereClause = 'WHERE 1=1';
+            const params = [];
+
+            if (search) {
+                whereClause += ' AND (c.email LIKE ? OR c.name LIKE ?)';
+                params.push(`%${search}%`, `%${search}%`);
+            }
+
+            if (dateFrom) {
+                whereClause += ' AND DATE(c.stripe_created_at) >= ?';
+                params.push(dateFrom);
+            }
+
+            if (dateTo) {
+                whereClause += ' AND DATE(c.stripe_created_at) <= ?';
+                params.push(dateTo);
+            }
+
+            // Get all customers matching the base filters (excluding status)
+            const statsQuery = `
+                SELECT 
+                    COUNT(*) as total_customers,
+                    SUM(CASE WHEN c.deleted = false AND c.delinquent = false THEN 1 ELSE 0 END) as active_customers,
+                    SUM(CASE WHEN c.delinquent = true THEN 1 ELSE 0 END) as past_due_customers,
+                    SUM(CASE WHEN c.deleted = true THEN 1 ELSE 0 END) as canceled_customers,
+                    COALESCE(SUM(sub_count.total_subscriptions), 0) as total_subscriptions,
+                    COALESCE(SUM(sub_count.active_subscriptions), 0) as active_subscriptions
+                FROM customers c
+                LEFT JOIN (
+                    SELECT 
+                        stripe_customer_id,
+                        COUNT(*) as total_subscriptions,
+                        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_subscriptions
+                    FROM customer_subscriptions 
+                    GROUP BY stripe_customer_id
+                ) sub_count ON c.stripe_customer_id = sub_count.stripe_customer_id
+                ${whereClause}
+            `;
+
+            const [result] = await executeQuery(adminPool, statsQuery, params);
+            
+            // Calculate at-risk customers (need to join with metrics)
+            const atRiskQuery = `
+                SELECT COUNT(*) as at_risk_customers
+                FROM customers c
+                LEFT JOIN (
+                    SELECT 
+                        stripe_customer_id,
+                        MAX(churn_risk_score) as churn_risk_score
+                    FROM customer_metrics
+                    WHERE metric_date = (
+                        SELECT MAX(metric_date) 
+                        FROM customer_metrics cm2 
+                        WHERE cm2.stripe_customer_id = customer_metrics.stripe_customer_id
+                    )
+                    GROUP BY stripe_customer_id
+                ) metrics ON c.stripe_customer_id = metrics.stripe_customer_id
+                ${whereClause}
+                AND COALESCE(metrics.churn_risk_score, 0.5) > 0.6
+            `;
+
+            const [atRiskResult] = await executeQuery(adminPool, atRiskQuery, params);
+
+            return {
+                total_customers: result.total_customers || 0,
+                active_customers: result.active_customers || 0,
+                past_due_customers: result.past_due_customers || 0,
+                canceled_customers: result.canceled_customers || 0,
+                at_risk_customers: atRiskResult.at_risk_customers || 0,
+                total_subscriptions: result.total_subscriptions || 0,
+                active_subscriptions: result.active_subscriptions || 0
+            };
+
+        } catch (error) {
+            logger.error('Error calculating filtered stats:', error);
             throw error;
         }
     }

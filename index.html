@@ -60,6 +60,17 @@
                             <i class="fas fa-file-alt"></i> Templates
                         </a>
                     </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/analytics.html">
+                            <i class="fas fa-chart-bar"></i> Customer Analytics
+                        </a>
+                    </li>
                     <li class="nav-section">System</li>
                     <li>
                         <a href="/medproadmin/audit-log/">
@@ -131,6 +142,57 @@
                 </div>
             </div>
             
+            <!-- Customer Metrics Row -->
+            <div class="row mt-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="dashboard-card">
+                        <div class="card-icon bg-dark">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3 id="total-customers">-</h3>
+                            <p>Total Customers</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="dashboard-card">
+                        <div class="card-icon bg-success">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3 id="active-customers">-</h3>
+                            <p>Active Customers</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="dashboard-card">
+                        <div class="card-icon bg-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3 id="at-risk-customers">-</h3>
+                            <p>At Risk Customers</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="dashboard-card">
+                        <div class="card-icon bg-warning">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3 id="monthly-revenue">-</h3>
+                            <p>Monthly Revenue</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="row mt-4">
                 <div class="col-lg-8">
                     <div class="card">
@@ -155,8 +217,18 @@
                                     </button>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <a href="/medproadmin/audit-log/" class="btn btn-info w-100">
-                                        <i class="fas fa-history"></i> View Audit Log
+                                    <a href="/medproadmin/customers/" class="btn btn-success w-100">
+                                        <i class="fas fa-users"></i> Manage Customers
+                                    </a>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-info w-100" onclick="syncCustomers()">
+                                        <i class="fas fa-user-sync"></i> Sync Customers
+                                    </button>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <a href="/medproadmin/customers/analytics.html" class="btn btn-dark w-100">
+                                        <i class="fas fa-chart-bar"></i> Customer Analytics
                                     </a>
                                 </div>
                             </div>
@@ -203,12 +275,61 @@
         
         async function loadDashboardStats() {
             try {
-                // This would fetch real data from the API
-                // For now, showing placeholder
-                console.log('Loading dashboard stats...');
+                // Load product stats
+                console.log('Loading product stats...');
+                
+                // Load customer stats
+                await loadCustomerStats();
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             }
+        }
+        
+        async function loadCustomerStats() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (!token) return;
+                
+                // Get customer analytics overview
+                const response = await fetch('/api/v1/analytics/customers/overview', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const overview = data.data?.overview || {};
+                    
+                    // Update customer metrics
+                    document.getElementById('total-customers').textContent = 
+                        (overview.total_customers || 0).toLocaleString('pt-BR');
+                    document.getElementById('active-customers').textContent = 
+                        (overview.active_customers || 0).toLocaleString('pt-BR');
+                    document.getElementById('at-risk-customers').textContent = 
+                        calculateAtRiskCustomers(overview);
+                    document.getElementById('monthly-revenue').textContent = 
+                        formatCurrency(overview.monthly_recurring_revenue || 0);
+                }
+            } catch (error) {
+                console.warn('Error loading customer stats:', error);
+            }
+        }
+        
+        function calculateAtRiskCustomers(overview) {
+            // Estimate at-risk customers (customers with high churn risk)
+            const total = overview.total_customers || 0;
+            const churnRate = overview.churn_rate || 0;
+            const atRisk = Math.round(total * (churnRate / 100));
+            return atRisk.toLocaleString('pt-BR');
+        }
+        
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(amount);
         }
         
         async function syncWithStripe() {
@@ -216,8 +337,45 @@
                 return;
             }
             
-            showToast('Sync started...', 'info');
+            showToast('Product sync started...', 'info');
             // Implementation will be added when backend is ready
+        }
+        
+        async function syncCustomers() {
+            if (!confirm('This will sync all customers from Stripe. Continue?')) {
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (!token) return;
+                
+                showToast('Customer sync started...', 'info');
+                
+                const response = await fetch('/api/v1/customers/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.data;
+                    showToast(`Sync completed! Processed: ${stats.customers?.processed || 0}, Created: ${stats.customers?.created || 0}, Updated: ${stats.customers?.updated || 0}`, 'success');
+                    
+                    // Refresh customer stats
+                    setTimeout(() => loadCustomerStats(), 2000);
+                } else {
+                    showToast('Customer sync failed: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Customer sync error:', error);
+                showToast('Customer sync failed: ' + error.message, 'error');
+            }
         }
         
         function logout() {

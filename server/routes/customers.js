@@ -50,6 +50,9 @@ router.get('/', async (req, res) => {
         });
 
         const result = await Customer.findAll(filters, pagination);
+        
+        // Calculate comprehensive stats for the current filter
+        const stats = await Customer.getFilteredStats(filters);
 
         res.json({
             success: true,
@@ -61,7 +64,8 @@ router.get('/', async (req, res) => {
                 total_results: result.pagination.total,
                 page: result.pagination.page,
                 per_page: result.pagination.limit,
-                total_pages: result.pagination.totalPages
+                total_pages: result.pagination.totalPages,
+                stats: stats
             }
         });
 
