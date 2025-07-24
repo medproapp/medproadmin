@@ -80,8 +80,11 @@ app.use('/api/v1/prices', require('./routes/prices'));
 app.use('/api/v1/recovery', require('./routes/recovery'));
 app.use('/api/v1/audit', require('./routes/audit'));
 app.use('/api/v1/sync', require('./routes/sync'));
+app.use('/api/v1/static-sync', require('./routes/staticSync'));
 app.use('/api/v1/stats', require('./routes/stats'));
 app.use('/api/v1/customers', require('./routes/customers'));
+app.use('/api/v1/segments', require('./routes/segments'));
+app.use('/api/v1/churn', require('./routes/churn'));
 app.use('/api/v1/analytics', require('./routes/analytics'));
 
 // Health check endpoint

@@ -3,6 +3,7 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const { executeQuery, executeTransaction, adminPool } = require('../config/database');
 const { verifyToken, requirePermission, logAdminAction } = require('../middleware/auth');
+const metadataParser = require('../services/metadataParser');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Sync all products from Stripe
@@ -49,32 +50,34 @@ router.post('/stripe/full', [
                         [stripeProduct.id]
                     );
                     
-                    const metadata = stripeProduct.metadata || {};
-                    const fullMetadata = {
-                        classification: {
-                            plan_type: metadata.plan_type,
-                            user_tier: metadata.user_tier ? parseInt(metadata.user_tier) : null,
-                            market_segment: metadata.market_segment
-                        },
-                        // Add other metadata fields as needed
-                    };
+                    // Parse product metadata using our comprehensive parser
+                    const parsedProduct = metadataParser.parseProductMetadata(stripeProduct);
                     
                     if (existing.length === 0) {
                         // Insert new product
                         await connection.execute(`
                             INSERT INTO product_catalog 
                             (stripe_product_id, name, description, active, metadata,
-                             plan_type, user_tier, sync_status, last_synced_at, stripe_created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', NOW(), FROM_UNIXTIME(?))
+                             plan_type, user_tier, max_users, ai_quota_monthly, is_enterprise,
+                             trial_eligible, target_audience, is_popular, is_free_plan,
+                             sync_status, last_stripe_sync, stripe_created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NOW(), FROM_UNIXTIME(?))
                         `, [
-                            stripeProduct.id,
-                            stripeProduct.name,
-                            stripeProduct.description || null,
-                            stripeProduct.active ? 1 : 0,
-                            JSON.stringify(fullMetadata),
-                            metadata.plan_type || null,
-                            metadata.user_tier ? parseInt(metadata.user_tier) : null,
-                            stripeProduct.created
+                            parsedProduct.stripe_product_id,
+                            parsedProduct.name,
+                            parsedProduct.description,
+                            parsedProduct.active ? 1 : 0,
+                            parsedProduct.metadata,
+                            parsedProduct.plan_type,
+                            parsedProduct.user_tier,
+                            parsedProduct.max_users,
+                            parsedProduct.ai_quota_monthly,
+                            parsedProduct.is_enterprise ? 1 : 0,
+                            parsedProduct.trial_eligible ? 1 : 0,
+                            parsedProduct.target_audience,
+                            parsedProduct.is_popular ? 1 : 0,
+                            parsedProduct.is_free_plan ? 1 : 0,
+                            parsedProduct.stripe_created_at.getTime() / 1000
                         ]);
                         stats.products_created++;
                     } else {
@@ -82,17 +85,26 @@ router.post('/stripe/full', [
                         await connection.execute(`
                             UPDATE product_catalog 
                             SET name = ?, description = ?, active = ?, metadata = ?,
-                                plan_type = ?, user_tier = ?, sync_status = 'synced',
-                                last_synced_at = NOW()
+                                plan_type = ?, user_tier = ?, max_users = ?, ai_quota_monthly = ?,
+                                is_enterprise = ?, trial_eligible = ?, target_audience = ?,
+                                is_popular = ?, is_free_plan = ?, sync_status = 'synced',
+                                last_stripe_sync = NOW()
                             WHERE stripe_product_id = ?
                         `, [
-                            stripeProduct.name,
-                            stripeProduct.description || null,
-                            stripeProduct.active ? 1 : 0,
-                            JSON.stringify(fullMetadata),
-                            metadata.plan_type || null,
-                            metadata.user_tier ? parseInt(metadata.user_tier) : null,
-                            stripeProduct.id
+                            parsedProduct.name,
+                            parsedProduct.description,
+                            parsedProduct.active ? 1 : 0,
+                            parsedProduct.metadata,
+                            parsedProduct.plan_type,
+                            parsedProduct.user_tier,
+                            parsedProduct.max_users,
+                            parsedProduct.ai_quota_monthly,
+                            parsedProduct.is_enterprise ? 1 : 0,
+                            parsedProduct.trial_eligible ? 1 : 0,
+                            parsedProduct.target_audience,
+                            parsedProduct.is_popular ? 1 : 0,
+                            parsedProduct.is_free_plan ? 1 : 0,
+                            parsedProduct.stripe_product_id
                         ]);
                         stats.products_updated++;
                     }
@@ -109,43 +121,52 @@ router.post('/stripe/full', [
                             [stripePrice.id]
                         );
                         
-                        const billingPeriod = stripePrice.recurring ? 
-                            (stripePrice.recurring.interval_count === 6 ? 'semester' : stripePrice.recurring.interval) :
-                            'one_time';
+                        // Parse price metadata using our comprehensive parser
+                        const parsedPrice = metadataParser.parsePriceMetadata(stripePrice);
                         
                         if (existingPrice.length === 0) {
                             await connection.execute(`
                                 INSERT INTO product_prices 
                                 (stripe_price_id, stripe_product_id, unit_amount, currency,
-                                 recurring_interval, recurring_interval_count, nickname, active, 
-                                 stripe_created_at, sync_status, last_synced_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), 'synced', NOW())
+                                 recurring_interval, recurring_interval_count, billing_period,
+                                 lookup_key, nickname, active, trial_period_days, metadata,
+                                 stripe_created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
                             `, [
-                                stripePrice.id,
-                                stripeProduct.id,
-                                stripePrice.unit_amount,
-                                stripePrice.currency,
-                                stripePrice.recurring ? stripePrice.recurring.interval : null,
-                                stripePrice.recurring ? stripePrice.recurring.interval_count : null,
-                                stripePrice.nickname || null,
-                                stripePrice.active ? 1 : 0,
-                                stripePrice.created
+                                parsedPrice.stripe_price_id,
+                                parsedPrice.stripe_product_id,
+                                parsedPrice.unit_amount,
+                                parsedPrice.currency,
+                                parsedPrice.recurring_interval,
+                                parsedPrice.recurring_interval_count,
+                                parsedPrice.billing_period,
+                                parsedPrice.lookup_key,
+                                parsedPrice.nickname,
+                                parsedPrice.active ? 1 : 0,
+                                parsedPrice.trial_period_days,
+                                parsedPrice.metadata,
+                                parsedPrice.stripe_created_at.getTime() / 1000
                             ]);
                         } else {
                             await connection.execute(`
                                 UPDATE product_prices 
                                 SET unit_amount = ?, currency = ?, recurring_interval = ?,
-                                    recurring_interval_count = ?, nickname = ?, active = ?, 
-                                    sync_status = 'synced', last_synced_at = NOW()
+                                    recurring_interval_count = ?, billing_period = ?, lookup_key = ?,
+                                    nickname = ?, active = ?, trial_period_days = ?, metadata = ?,
+                                    updated_at = NOW()
                                 WHERE stripe_price_id = ?
                             `, [
-                                stripePrice.unit_amount,
-                                stripePrice.currency,
-                                stripePrice.recurring ? stripePrice.recurring.interval : null,
-                                stripePrice.recurring ? stripePrice.recurring.interval_count : null,
-                                stripePrice.nickname || null,
-                                stripePrice.active ? 1 : 0,
-                                stripePrice.id
+                                parsedPrice.unit_amount,
+                                parsedPrice.currency,
+                                parsedPrice.recurring_interval,
+                                parsedPrice.recurring_interval_count,
+                                parsedPrice.billing_period,
+                                parsedPrice.lookup_key,
+                                parsedPrice.nickname,
+                                parsedPrice.active ? 1 : 0,
+                                parsedPrice.trial_period_days,
+                                parsedPrice.metadata,
+                                parsedPrice.stripe_price_id
                             ]);
                         }
                         stats.prices_synced++;
@@ -198,37 +219,38 @@ router.post('/stripe/product/:id', [
         });
         
         await executeTransaction(adminPool, async (connection) => {
-            // Update product
-            const metadata = stripeProduct.metadata || {};
-            const fullMetadata = {
-                classification: {
-                    plan_type: metadata.plan_type,
-                    user_tier: metadata.user_tier ? parseInt(metadata.user_tier) : null,
-                    market_segment: metadata.market_segment
-                }
-            };
+            // Parse product metadata using our comprehensive parser
+            const parsedProduct = metadataParser.parseProductMetadata(stripeProduct);
             
             await connection.execute(`
                 UPDATE product_catalog 
                 SET name = ?, description = ?, active = ?, metadata = ?,
-                    plan_type = ?, user_tier = ?, sync_status = 'synced',
+                    plan_type = ?, user_tier = ?, max_users = ?, ai_quota_monthly = ?,
+                    is_enterprise = ?, trial_eligible = ?, target_audience = ?,
+                    is_popular = ?, is_free_plan = ?, sync_status = 'synced',
                     last_stripe_sync = NOW()
                 WHERE stripe_product_id = ?
             `, [
-                stripeProduct.name,
-                stripeProduct.description,
-                stripeProduct.active ? 1 : 0,
-                JSON.stringify(fullMetadata),
-                metadata.plan_type,
-                metadata.user_tier ? parseInt(metadata.user_tier) : null,
+                parsedProduct.name,
+                parsedProduct.description,
+                parsedProduct.active ? 1 : 0,
+                parsedProduct.metadata,
+                parsedProduct.plan_type,
+                parsedProduct.user_tier,
+                parsedProduct.max_users,
+                parsedProduct.ai_quota_monthly,
+                parsedProduct.is_enterprise ? 1 : 0,
+                parsedProduct.trial_eligible ? 1 : 0,
+                parsedProduct.target_audience,
+                parsedProduct.is_popular ? 1 : 0,
+                parsedProduct.is_free_plan ? 1 : 0,
                 productId
             ]);
             
-            // Update prices
+            // Update prices with comprehensive metadata parsing
             for (const stripePrice of stripePrices.data) {
-                const billingPeriod = stripePrice.recurring ? 
-                    (stripePrice.recurring.interval_count === 6 ? 'semester' : stripePrice.recurring.interval) :
-                    'one_time';
+                // Parse price metadata using our comprehensive parser
+                const parsedPrice = metadataParser.parsePriceMetadata(stripePrice);
                 
                 const [existing] = await connection.execute(
                     'SELECT * FROM product_prices WHERE stripe_price_id = ?',
@@ -238,13 +260,47 @@ router.post('/stripe/product/:id', [
                 if (existing.length > 0) {
                     await connection.execute(`
                         UPDATE product_prices 
-                        SET unit_amount = ?, active = ?, lookup_key = ?
+                        SET unit_amount = ?, currency = ?, recurring_interval = ?,
+                            recurring_interval_count = ?, billing_period = ?, lookup_key = ?,
+                            nickname = ?, active = ?, trial_period_days = ?, metadata = ?,
+                            updated_at = NOW()
                         WHERE stripe_price_id = ?
                     `, [
-                        stripePrice.unit_amount,
-                        stripePrice.active ? 1 : 0,
-                        stripePrice.lookup_key,
-                        stripePrice.id
+                        parsedPrice.unit_amount,
+                        parsedPrice.currency,
+                        parsedPrice.recurring_interval,
+                        parsedPrice.recurring_interval_count,
+                        parsedPrice.billing_period,
+                        parsedPrice.lookup_key,
+                        parsedPrice.nickname,
+                        parsedPrice.active ? 1 : 0,
+                        parsedPrice.trial_period_days,
+                        parsedPrice.metadata,
+                        parsedPrice.stripe_price_id
+                    ]);
+                } else {
+                    // Insert new price if it doesn't exist
+                    await connection.execute(`
+                        INSERT INTO product_prices 
+                        (stripe_price_id, stripe_product_id, unit_amount, currency,
+                         recurring_interval, recurring_interval_count, billing_period,
+                         lookup_key, nickname, active, trial_period_days, metadata,
+                         stripe_created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), NOW())
+                    `, [
+                        parsedPrice.stripe_price_id,
+                        parsedPrice.stripe_product_id,
+                        parsedPrice.unit_amount,
+                        parsedPrice.currency,
+                        parsedPrice.recurring_interval,
+                        parsedPrice.recurring_interval_count,
+                        parsedPrice.billing_period,
+                        parsedPrice.lookup_key,
+                        parsedPrice.nickname,
+                        parsedPrice.active ? 1 : 0,
+                        parsedPrice.trial_period_days,
+                        parsedPrice.metadata,
+                        parsedPrice.stripe_created_at.getTime() / 1000
                     ]);
                 }
             }

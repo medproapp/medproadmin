@@ -14,6 +14,8 @@ class CustomerAPI {
      */
     async getCustomers(options = {}) {
         console.log('🔍 CustomerAPI: getCustomers called with options:', options);
+        console.log('🔍 CustomerAPI: subscription_filter value:', options.subscription_filter);
+        console.log('🔍 CustomerAPI: subscription_filter type:', typeof options.subscription_filter);
         
         const params = new URLSearchParams();
         
@@ -26,11 +28,20 @@ class CustomerAPI {
             params.append('search', options.search.trim());
         }
         if (options.status) params.append('status', options.status);
+        if (options.subscription_filter) {
+            console.log('🔍 CustomerAPI: Adding subscription_filter to params:', options.subscription_filter);
+            params.append('subscription_filter', options.subscription_filter);
+        } else {
+            console.log('🔍 CustomerAPI: subscription_filter not added - value is falsy:', options.subscription_filter);
+        }
         if (options.date_from) params.append('date_from', options.date_from);
         if (options.date_to) params.append('date_to', options.date_to);
         if (options.sort_by) params.append('sort_by', options.sort_by);
         if (options.sort_order) params.append('sort_order', options.sort_order);
 
+        console.log('🔍 CustomerAPI: Final params object:', params);
+        console.log('🔍 CustomerAPI: Params toString:', params.toString());
+        
         const url = `${this.baseUrl}/customers${params.toString() ? '?' + params.toString() : ''}`;
         console.log('🔍 CustomerAPI: Fetching URL:', url);
         

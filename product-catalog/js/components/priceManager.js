@@ -8,27 +8,47 @@ class PriceManager {
     }
     
     showModal(product) {
-        this.currentProduct = product;
-        this.currentPrices = product.prices || [];
-        this.pendingChanges = [];
+        console.log('🔍 PriceManager: showModal called');
+        console.log('🔍 PriceManager: Product data:', product);
+        console.log('🔍 PriceManager: Product name:', product?.name);
+        console.log('🔍 PriceManager: Product prices:', product?.prices);
         
-        const modalContent = this.renderContent();
-        
-        this.modal = new adminUtils.Modal({
-            title: `Manage Prices - ${product.name}`,
-            content: modalContent,
-            size: 'xl',
-            footer: this.renderFooter()
-        });
-        
-        this.modal.on('show', () => {
-            this.setupEventListeners();
-            this.renderPricesTable();
-        });
-        
-        this.modal.show();
-        
-        return this.modal;
+        try {
+            this.currentProduct = product;
+            this.currentPrices = product.prices || [];
+            this.pendingChanges = [];
+            
+            console.log('🔍 PriceManager: Current prices set:', this.currentPrices);
+            console.log('🔍 PriceManager: Current prices length:', this.currentPrices.length);
+            
+            const modalContent = this.renderContent();
+            console.log('🔍 PriceManager: Modal content rendered');
+            
+            this.modal = new adminUtils.Modal({
+                title: `Manage Prices - ${product.name}`,
+                content: modalContent,
+                size: 'xl',
+                footer: this.renderFooter()
+            });
+            
+            console.log('🔍 PriceManager: Modal created');
+            
+            this.modal.on('show', () => {
+                console.log('🔍 PriceManager: Modal show event triggered');
+                this.setupEventListeners();
+                this.renderPricesTable();
+            });
+            
+            console.log('🔍 PriceManager: About to show modal');
+            this.modal.show();
+            console.log('🔍 PriceManager: Modal show() called');
+            
+            return this.modal;
+        } catch (error) {
+            console.error('❌ PriceManager: Error in showModal:', error);
+            console.error('❌ PriceManager: Error stack:', error.stack);
+            throw error;
+        }
     }
     
     renderContent() {
@@ -174,116 +194,207 @@ class PriceManager {
     }
     
     renderPricesTable() {
-        const container = document.getElementById('prices-table-container');
+        console.log('🔍 PriceManager: renderPricesTable called');
+        console.log('🔍 PriceManager: Current prices to render:', this.currentPrices);
         
-        if (this.currentPrices.length === 0) {
-            container.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    No prices configured for this product. Add at least one price to make the product available for purchase.
+        try {
+            const container = document.getElementById('prices-table-container');
+            console.log('🔍 PriceManager: Container found:', !!container);
+            
+            if (!container) {
+                console.error('❌ PriceManager: prices-table-container not found');
+                return;
+            }
+            
+            if (this.currentPrices.length === 0) {
+                console.log('🔍 PriceManager: No prices found, showing warning');
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        No prices configured for this product. Add at least one price to make the product available for purchase.
+                    </div>
+                `;
+                this.showRecommendations();
+                return;
+            }
+            
+            // Sort prices by period order
+            const periodOrder = { 'month': 1, 'semester': 2, 'year': 3 };
+            const sortedPrices = [...this.currentPrices].sort((a, b) => 
+                (periodOrder[a.billing_period] || 99) - (periodOrder[b.billing_period] || 99)
+            );
+            
+            console.log('🔍 PriceManager: Sorted prices:', sortedPrices);
+            console.log('🔍 PriceManager: About to render', sortedPrices.length, 'price rows');
+            
+            const priceRows = sortedPrices.map((price, index) => {
+                console.log('🔍 PriceManager: Rendering price row for:', price);
+                try {
+                    return this.renderPriceRow(price, index);
+                } catch (error) {
+                    console.error('❌ PriceManager: Error rendering price row:', error, price);
+                    return `<tr><td colspan="7" class="text-danger">Error rendering price: ${error.message}</td></tr>`;
+                }
+            }).join('');
+            
+            const tableHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Amount</th>
+                                <th>Per Month</th>
+                                <th>Discount</th>
+                                <th>Lookup Key</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${priceRows}
+                        </tbody>
+                    </table>
                 </div>
             `;
-            this.showRecommendations();
-            return;
+            
+            console.log('🔍 PriceManager: Setting container innerHTML');
+            container.innerHTML = tableHTML;
+            console.log('🔍 PriceManager: Table HTML set successfully');
+            
+            this.checkPriceCompleteness();
+            console.log('🔍 PriceManager: Price completeness check completed');
+            
+        } catch (error) {
+            console.error('❌ PriceManager: Error in renderPricesTable:', error);
+            console.error('❌ PriceManager: Error stack:', error.stack);
         }
-        
-        // Sort prices by period order
-        const periodOrder = { 'month': 1, 'semester': 2, 'year': 3 };
-        const sortedPrices = [...this.currentPrices].sort((a, b) => 
-            (periodOrder[a.billing_period] || 99) - (periodOrder[b.billing_period] || 99)
-        );
-        
-        container.innerHTML = `
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Period</th>
-                            <th>Amount</th>
-                            <th>Per Month</th>
-                            <th>Discount</th>
-                            <th>Lookup Key</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sortedPrices.map((price, index) => this.renderPriceRow(price, index)).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
-        this.checkPriceCompleteness();
     }
     
     renderPriceRow(price, index) {
-        const monthlyAmount = this.calculateMonthlyAmount(price);
-        const discount = this.calculateDiscount(price);
-        const isModified = this.pendingChanges.some(change => 
-            change.priceId === price.stripe_price_id && change.action !== 'delete'
-        );
-        const isDeleted = this.pendingChanges.some(change => 
-            change.priceId === price.stripe_price_id && change.action === 'delete'
-        );
+        console.log('🔍 PriceManager: renderPriceRow called for price:', price);
+        console.log('🔍 PriceManager: Full price object keys:', Object.keys(price));
+        console.log('🔍 PriceManager: billing_period value:', price.billing_period);
+        console.log('🔍 PriceManager: billing_period type:', typeof price.billing_period);
+        console.log('🔍 PriceManager: lookup_key value:', price.lookup_key);
+        console.log('🔍 PriceManager: unit_amount:', price.unit_amount);
+        console.log('🔍 PriceManager: currency:', price.currency);
         
-        return `
-            <tr class="${isDeleted ? 'table-danger text-decoration-line-through' : ''} ${isModified ? 'table-warning' : ''}">
-                <td>
-                    <strong>${this.formatPeriod(price.billing_period)}</strong>
-                    ${price.trial_period_days > 0 ? `<br><small class="text-muted">${price.trial_period_days} day trial</small>` : ''}
-                </td>
-                <td>
-                    ${productFormatter.formatPrice(price.unit_amount)}
-                </td>
-                <td>
-                    <small class="text-muted">${productFormatter.formatPrice(monthlyAmount)}/month</small>
-                </td>
-                <td>
-                    ${discount > 0 ? `<span class="badge bg-success">${discount}% off</span>` : '-'}
-                </td>
-                <td>
-                    <code class="small">${price.lookup_key || 'N/A'}</code>
-                    ${this.isLookupKeyInvalid(price.lookup_key) ? '<br><span class="badge bg-danger">Invalid</span>' : ''}
-                </td>
-                <td>
-                    ${price.active ? 
-                        '<span class="badge bg-success">Active</span>' : 
-                        '<span class="badge bg-secondary">Inactive</span>'}
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" 
-                                class="btn btn-outline-primary" 
-                                onclick="priceManager.editPrice('${price.stripe_price_id}')"
-                                ${isDeleted ? 'disabled' : ''}
-                                title="Edit price">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" 
-                                class="btn btn-outline-danger" 
-                                onclick="priceManager.deletePrice('${price.stripe_price_id}')"
-                                ${isDeleted ? 'disabled' : ''}
-                                title="Delete price">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
+        try {
+            const monthlyAmount = this.calculateMonthlyAmount(price);
+            console.log('🔍 PriceManager: Monthly amount calculated:', monthlyAmount);
+            
+            const discount = this.calculateDiscount(price);
+            console.log('🔍 PriceManager: Discount calculated:', discount);
+            
+            const isModified = this.pendingChanges.some(change => 
+                change.priceId === price.stripe_price_id && change.action !== 'delete'
+            );
+            const isDeleted = this.pendingChanges.some(change => 
+                change.priceId === price.stripe_price_id && change.action === 'delete'
+            );
+            
+            console.log('🔍 PriceManager: Price states - modified:', isModified, 'deleted:', isDeleted);
+            
+            // Check if productFormatter is available
+            if (!window.productFormatter) {
+                console.error('❌ PriceManager: productFormatter not available globally');
+                throw new Error('productFormatter not available');
+            }
+            
+            const formattedPrice = productFormatter.formatPrice(price.unit_amount);
+            const formattedMonthlyAmount = productFormatter.formatPrice(monthlyAmount);
+            console.log('🔍 PriceManager: Formatted prices - main:', formattedPrice, 'monthly:', formattedMonthlyAmount);
+            
+            const rowHTML = `
+                <tr class="${isDeleted ? 'table-danger text-decoration-line-through' : ''} ${isModified ? 'table-warning' : ''}">
+                    <td>
+                        <strong>${this.formatPeriod(price.billing_period)}</strong>
+                        ${price.trial_period_days > 0 ? `<br><small class="text-muted">${price.trial_period_days} day trial</small>` : ''}
+                    </td>
+                    <td>
+                        ${formattedPrice}
+                    </td>
+                    <td>
+                        <small class="text-muted">${formattedMonthlyAmount}/month</small>
+                    </td>
+                    <td>
+                        ${discount > 0 ? `<span class="badge bg-success">${discount}% off</span>` : '-'}
+                    </td>
+                    <td>
+                        <code class="small">${price.lookup_key || 'N/A'}</code>
+                        ${this.isLookupKeyInvalid(price.lookup_key) ? '<br><span class="badge bg-danger">Invalid</span>' : ''}
+                    </td>
+                    <td>
+                        ${price.active ? 
+                            '<span class="badge bg-success">Active</span>' : 
+                            '<span class="badge bg-secondary">Inactive</span>'}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" 
+                                    class="btn btn-outline-primary" 
+                                    onclick="priceManager.editPrice('${price.stripe_price_id}')"
+                                    ${isDeleted ? 'disabled' : ''}
+                                    title="Edit price">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-danger" 
+                                    onclick="priceManager.deletePrice('${price.stripe_price_id}')"
+                                    ${isDeleted ? 'disabled' : ''}
+                                    title="Delete price">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            
+            console.log('🔍 PriceManager: Row HTML generated successfully');
+            return rowHTML;
+            
+        } catch (error) {
+            console.error('❌ PriceManager: Error in renderPriceRow:', error);
+            console.error('❌ PriceManager: Price data:', price);
+            throw error;
+        }
     }
     
     showAddPriceForm() {
-        const form = document.getElementById('add-price-form');
-        form.style.display = 'block';
+        console.log('🔍 PriceManager: showAddPriceForm called');
         
-        // Update lookup key preview when period changes
-        document.getElementById('new-price-period').addEventListener('change', (e) => {
-            this.updateLookupKeyPreview();
-        });
-        
-        // Focus on period select
-        document.getElementById('new-price-period').focus();
+        try {
+            const form = document.getElementById('add-price-form');
+            console.log('🔍 PriceManager: Add price form found:', !!form);
+            
+            if (!form) {
+                console.error('❌ PriceManager: add-price-form element not found');
+                return;
+            }
+            
+            form.style.display = 'block';
+            console.log('🔍 PriceManager: Form displayed');
+            
+            // Update lookup key preview when period changes
+            const periodSelect = document.getElementById('new-price-period');
+            console.log('🔍 PriceManager: Period select found:', !!periodSelect);
+            
+            if (periodSelect) {
+                periodSelect.addEventListener('change', (e) => {
+                    console.log('🔍 PriceManager: Period changed to:', e.target.value);
+                    this.updateLookupKeyPreview();
+                });
+                
+                // Focus on period select
+                periodSelect.focus();
+                console.log('🔍 PriceManager: Focus set on period select');
+            }
+            
+        } catch (error) {
+            console.error('❌ PriceManager: Error in showAddPriceForm:', error);
+            console.error('❌ PriceManager: Error stack:', error.stack);
+        }
     }
     
     hideAddPriceForm() {
@@ -503,20 +614,45 @@ class PriceManager {
     }
     
     checkPriceCompleteness() {
-        const recommendations = [];
-        const requiredPeriods = ['month', 'semester', 'year'];
+        console.log('🔍 PriceManager: checkPriceCompleteness called');
+        console.log('🔍 PriceManager: Current prices billing periods:', this.currentPrices.map(p => p.billing_period));
         
-        requiredPeriods.forEach(period => {
-            const hasPrice = this.currentPrices.some(p => 
-                p.billing_period === period && 
-                !this.pendingChanges.some(c => c.priceId === p.stripe_price_id && c.action === 'delete')
-            );
+        const recommendations = [];
+        
+        // Map of possible period values to standardized names
+        const periodMappings = {
+            // Monthly variations
+            'month': 'monthly',
+            'monthly': 'monthly', 
+            '1': 'monthly',
+            // Semester variations
+            'semester': 'semester',
+            'semiannual': 'semester',
+            '6': 'semester',
+            // Annual variations  
+            'year': 'annual',
+            'annual': 'annual',
+            'annually': 'annual',
+            '12': 'annual'
+        };
+        
+        const requiredPeriods = ['monthly', 'semester', 'annual'];
+        const standardizedPeriods = this.currentPrices.map(p => periodMappings[p.billing_period]).filter(Boolean);
+        console.log('🔍 PriceManager: Standardized periods found:', standardizedPeriods);
+        
+        requiredPeriods.forEach(requiredPeriod => {
+            const hasPrice = standardizedPeriods.includes(requiredPeriod) && 
+                !this.pendingChanges.some(c => c.action === 'delete');
+            
+            console.log('🔍 PriceManager: Checking', requiredPeriod, 'found:', hasPrice);
             
             if (!hasPrice) {
+                const displayName = requiredPeriod === 'monthly' ? 'Monthly' : 
+                                  requiredPeriod === 'semester' ? 'Semester (6 months)' : 'Annual';
                 recommendations.push({
                     type: 'missing_period',
-                    period: period,
-                    message: `Missing ${this.formatPeriod(period)} price`
+                    period: requiredPeriod,
+                    message: `Missing ${displayName} price`
                 });
             }
         });
@@ -848,43 +984,121 @@ class PriceManager {
     
     // Helper methods
     calculateMonthlyAmount(price) {
+        console.log('🔍 PriceManager: calculateMonthlyAmount for period:', price.billing_period);
+        
         const periods = {
+            // Standard values
             'month': 1,
             'semester': 6,
-            'year': 12
+            'year': 12,
+            'one_time': 1,
+            // Alternative formats
+            'monthly': 1,
+            'quarterly': 3,
+            'semiannual': 6,
+            'annual': 12,
+            'annually': 12,
+            // Numeric values
+            '1': 1,
+            '3': 3,
+            '6': 6,
+            '12': 12
         };
-        const months = periods[price.billing_period] || 1;
-        return Math.round(price.unit_amount / months);
+        
+        const monthCount = periods[price.billing_period] || 1;
+        const monthlyAmount = Math.round(price.unit_amount / monthCount);
+        
+        console.log('🔍 PriceManager: Period:', price.billing_period, 'Months:', monthCount, 'Monthly amount:', monthlyAmount);
+        return monthlyAmount;
     }
     
     calculateDiscount(price) {
-        if (price.billing_period === 'month') return 0;
+        console.log('🔍 PriceManager: calculateDiscount for period:', price.billing_period);
         
-        // Find monthly price
-        const monthlyPrice = this.currentPrices.find(p => p.billing_period === 'month');
-        if (!monthlyPrice) return 0;
+        // Check if this is a monthly price (no discount)
+        const monthlyPeriods = ['month', 'monthly', '1'];
+        if (monthlyPeriods.includes(price.billing_period)) {
+            console.log('🔍 PriceManager: Monthly period, no discount');
+            return 0;
+        }
+        
+        // Find monthly price for comparison
+        const monthlyPrice = this.currentPrices.find(p => monthlyPeriods.includes(p.billing_period));
+        if (!monthlyPrice) {
+            console.log('🔍 PriceManager: No monthly price found for comparison');
+            return 0;
+        }
+        
+        const monthlyAmount = monthlyPrice.unit_amount;
+        console.log('🔍 PriceManager: Monthly base price:', monthlyAmount);
         
         const periods = {
+            // Standard values
             'semester': 6,
-            'year': 12
+            'year': 12,
+            'one_time': 1,
+            // Alternative formats
+            'quarterly': 3,
+            'semiannual': 6,
+            'annual': 12,
+            'annually': 12,
+            // Numeric values
+            '3': 3,
+            '6': 6,
+            '12': 12
         };
         
-        const months = periods[price.billing_period] || 1;
-        const expectedAmount = monthlyPrice.unit_amount * months;
+        const monthCount = periods[price.billing_period] || 1;
+        const expectedAmount = monthlyAmount * monthCount;
         const actualAmount = price.unit_amount;
         
+        console.log('🔍 PriceManager: Expected amount:', expectedAmount, 'Actual amount:', actualAmount);
+        
+        if (expectedAmount <= actualAmount) {
+            console.log('🔍 PriceManager: No discount (actual >= expected)');
+            return 0;
+        }
+        
         const discount = Math.round(((expectedAmount - actualAmount) / expectedAmount) * 100);
-        return Math.max(0, discount);
+        const finalDiscount = Math.max(0, discount);
+        
+        console.log('🔍 PriceManager: Calculated discount:', finalDiscount, '%');
+        return finalDiscount;
     }
     
     formatPeriod(period) {
+        console.log('🔍 PriceManager: formatPeriod called with:', period, 'type:', typeof period);
+        
+        // Handle undefined/null periods
+        if (!period || period === 'undefined' || period === undefined) {
+            console.log('🔍 PriceManager: Period is undefined, returning "Unknown Period"');
+            return 'Unknown Period';
+        }
+        
         const formats = {
+            // Database billing_period values (primary)
             'month': 'Monthly',
             'semester': 'Semester (6 months)',
             'year': 'Annual',
-            'one_time': 'One-time'
+            'one_time': 'One-time',
+            // Legacy Stripe values for backward compatibility
+            'week': 'Weekly',
+            'day': 'Daily',
+            // Alternative formats
+            'monthly': 'Monthly',
+            'quarterly': 'Quarterly',
+            'semiannual': 'Semester (6 months)',
+            'annually': 'Annual',
+            'annual': 'Annual',
+            // Numeric values (if stored as numbers)
+            '1': 'Monthly',
+            '6': 'Semester (6 months)',
+            '12': 'Annual'
         };
-        return formats[period] || period;
+        
+        const result = formats[period] || period;
+        console.log('🔍 PriceManager: formatPeriod result:', result);
+        return result;
     }
     
     isLookupKeyInvalid(lookupKey) {
@@ -895,7 +1109,31 @@ class PriceManager {
     }
     
     setupEventListeners() {
-        // Any additional event listeners
+        console.log('🔍 PriceManager: setupEventListeners called');
+        
+        try {
+            // Check if modal DOM elements are available
+            const modal = document.querySelector('.modal.show');
+            console.log('🔍 PriceManager: Modal DOM element found:', !!modal);
+            
+            const addPriceForm = document.getElementById('add-price-form');
+            console.log('🔍 PriceManager: Add price form found:', !!addPriceForm);
+            
+            const pricesTableContainer = document.getElementById('prices-table-container');
+            console.log('🔍 PriceManager: Prices table container found:', !!pricesTableContainer);
+            
+            const pendingChanges = document.getElementById('pending-changes');
+            console.log('🔍 PriceManager: Pending changes container found:', !!pendingChanges);
+            
+            const saveBtn = document.getElementById('save-prices-btn');
+            console.log('🔍 PriceManager: Save button found:', !!saveBtn);
+            
+            console.log('🔍 PriceManager: All modal elements checked');
+            
+        } catch (error) {
+            console.error('❌ PriceManager: Error in setupEventListeners:', error);
+            console.error('❌ PriceManager: Error stack:', error.stack);
+        }
     }
 }
 

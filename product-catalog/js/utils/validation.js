@@ -195,6 +195,11 @@ class ProductValidator {
     detectProductIssues(product) {
         const issues = [];
         
+        // Determine plan category
+        const isFreeplan = product.name.toLowerCase().includes('gratuito');
+        const isPatientPlan = product.plan_type === 'PATIENT' || product.name.toLowerCase().includes('paciente');
+        const isRegularPlan = !isFreeplan && !isPatientPlan;
+        
         // Check for v3 naming
         if (!product.name.toLowerCase().includes('v3') && 
             !product.stripe_product_id.includes('v3')) {
@@ -205,17 +210,30 @@ class ProductValidator {
             });
         }
         
-        // Check for missing prices
-        const expectedPrices = ['month', 'semester', 'year'];
+        // Check for missing prices based on plan category
         const existingPeriods = product.prices?.map(p => p.billing_period) || [];
-        const missingPeriods = expectedPrices.filter(p => !existingPeriods.includes(p));
         
-        if (missingPeriods.length > 0) {
-            issues.push({
-                type: 'pricing',
-                severity: 'medium',
-                message: `Missing prices for: ${missingPeriods.join(', ')}`
-            });
+        if (isRegularPlan) {
+            // Regular plans should have full pricing options
+            const expectedPrices = ['month', 'semester', 'year'];
+            const missingPeriods = expectedPrices.filter(p => !existingPeriods.includes(p));
+            
+            if (missingPeriods.length > 0) {
+                issues.push({
+                    type: 'pricing',
+                    severity: 'medium',
+                    message: `Missing prices for: ${missingPeriods.join(', ')}`
+                });
+            }
+        } else if (isFreeplan || isPatientPlan) {
+            // Free and Patient plans only need monthly pricing
+            if (!existingPeriods.includes('month')) {
+                issues.push({
+                    type: 'pricing',
+                    severity: 'medium',
+                    message: 'Missing monthly pricing'
+                });
+            }
         }
         
         // Check for incorrect lookup keys
@@ -229,14 +247,33 @@ class ProductValidator {
             }
         });
         
-        // Check for missing AI metadata
-        if (!product.metadata?.ai_monthly_tokens) {
-            issues.push({
-                type: 'metadata',
-                severity: 'medium',
-                message: 'Missing AI quota configuration'
-            });
+        // Check for missing AI metadata based on plan category
+        const hasAiQuota = product.ai_quota_monthly || 
+                          product.metadata?.ai_monthly_tokens || 
+                          product.metadata?.ai_quotas?.tokens?.monthly_limit;
+        
+        const aiQuotaValue = product.ai_quota_monthly || 0;
+        
+        if (isRegularPlan) {
+            // Regular plans must have AI quota > 0
+            if (!hasAiQuota || aiQuotaValue <= 0) {
+                issues.push({
+                    type: 'metadata',
+                    severity: 'medium',
+                    message: 'Missing AI quota configuration'
+                });
+            }
+        } else if (isFreeplan) {
+            // Free plans can have low AI quotas, but should have some configuration
+            if (!hasAiQuota && aiQuotaValue === undefined) {
+                issues.push({
+                    type: 'metadata',
+                    severity: 'low',
+                    message: 'AI quota not configured for free plan'
+                });
+            }
         }
+        // Patient plans can legitimately have 0 AI quota, so no validation needed
         
         // Check sync status
         if (product.sync_status === 'error') {

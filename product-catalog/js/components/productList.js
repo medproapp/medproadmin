@@ -49,6 +49,9 @@ class ProductList {
                 case 'view-metadata':
                     window.app.viewMetadata(productId);
                     break;
+                case 'view-inactive-metadata':
+                    window.app.viewInactiveMetadata(productId);
+                    break;
                 case 'clone':
                     window.app.cloneProduct(productId);
                     break;
@@ -73,7 +76,7 @@ class ProductList {
         // Handle product card clicks
         this.container.addEventListener('click', (e) => {
             const card = e.target.closest('.product-card');
-            if (card && !e.target.closest('.product-actions') && !e.target.closest('.product-checkbox')) {
+            if (card && !e.target.closest('.product-actions') && !e.target.closest('.product-checkbox') && !e.target.closest('.inactive-metadata-section')) {
                 this.options.onProductSelect(card.dataset.productId);
             }
         });
@@ -106,7 +109,34 @@ class ProductList {
             hasIssues && 'has-issues',
             this.selectedProducts.has(product.stripe_product_id) && 'selected'
         ].filter(Boolean).join(' ');
+
+        // For inactive products, show simplified layout
+        if (!isActive) {
+            return `
+                <div class="${cardClasses}" data-product-id="${product.stripe_product_id}">
+                    <div class="product-header">
+                        <h4 class="product-title">${this.escapeHtml(product.name)}</h4>
+                        <div class="product-badges">
+                            <span class="badge bg-secondary">Inativo</span>
+                            ${hasIssues ? 
+                                `<span class="badge bg-warning" title="${issues.length} problemas encontrados">
+                                    <i class="fas fa-exclamation-triangle"></i> ${issues.length}
+                                </span>` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="inactive-metadata-section">
+                        <button class="btn btn-outline-info btn-block" 
+                                data-action="view-inactive-metadata"
+                                data-product-id="${product.stripe_product_id}">
+                            <i class="fas fa-eye"></i> Visualizar Metadata
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
         
+        // For active products, show full layout
         return `
             <div class="${cardClasses}" data-product-id="${product.stripe_product_id}">
                 <input type="checkbox" 
@@ -117,9 +147,7 @@ class ProductList {
                 <div class="product-header">
                     <h4 class="product-title">${this.escapeHtml(product.name)}</h4>
                     <div class="product-badges">
-                        ${isActive ? 
-                            '<span class="badge bg-success">Ativo</span>' : 
-                            '<span class="badge bg-secondary">Inativo</span>'}
+                        <span class="badge bg-success">Ativo</span>
                         ${hasIssues ? 
                             `<span class="badge bg-warning" title="${issues.length} problemas encontrados">
                                 <i class="fas fa-exclamation-triangle"></i> ${issues.length}
@@ -166,17 +194,11 @@ class ProductList {
                             data-product-id="${product.stripe_product_id}">
                         <i class="fas fa-copy"></i> Clonar
                     </button>
-                    ${!isActive ? 
-                        `<button class="btn btn-sm btn-success" 
-                                data-action="activate"
-                                data-product-id="${product.stripe_product_id}">
-                            <i class="fas fa-check"></i> Ativar
-                        </button>` :
-                        `<button class="btn btn-sm btn-warning" 
-                                data-action="deactivate"
-                                data-product-id="${product.stripe_product_id}">
-                            <i class="fas fa-ban"></i> Desativar
-                        </button>`}
+                    <button class="btn btn-sm btn-warning" 
+                            data-action="deactivate"
+                            data-product-id="${product.stripe_product_id}">
+                        <i class="fas fa-ban"></i> Desativar
+                    </button>
                 </div>
             </div>
         `;
@@ -312,7 +334,7 @@ class ProductList {
         const stats = {
             total: products.length,
             active: products.filter(p => p.active).length,
-            issues: products.filter(p => productValidator.detectProductIssues(p).length > 0).length,
+            issues: products.filter(p => p.active && productValidator.detectProductIssues(p).length > 0).length,
             synced: products.filter(p => p.sync_status === 'synced').length
         };
         

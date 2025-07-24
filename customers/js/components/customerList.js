@@ -73,8 +73,8 @@ class CustomerList {
                 ...filters,
                 page: this.currentPage,
                 limit: this.limit,
-                sort_by: 'stripe_created_at',
-                sort_order: 'desc'
+                sort_by: filters.sort_by || 'stripe_created_at',
+                sort_order: filters.sort_order || 'desc'
             };
 
             console.log('🔍 CustomerList: Making API call with options:', options);
@@ -255,8 +255,8 @@ class CustomerList {
      * @returns {string} Subscription text
      */
     getSubscriptionText(customer) {
-        const total = customer.subscription_count || 0;
-        const active = customer.active_subscription_count || 0;
+        const total = customer.total_subscriptions || 0;
+        const active = customer.active_subscriptions || 0;
         
         if (total === 0) {
             return 'No subscriptions';

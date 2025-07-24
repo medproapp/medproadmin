@@ -354,7 +354,7 @@ class AnalyticsCharts {
             const values = topProducts.map(d => d.total_revenue || 0);
 
             this.charts.productRevenue = new Chart(ctx, {
-                type: 'horizontalBar',
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{

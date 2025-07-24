@@ -8,6 +8,7 @@ class CustomerApp {
         this.filters = {
             search: '',
             status: '',
+            subscription_filter: '',
             date_from: '',
             date_to: ''
         };
@@ -138,11 +139,14 @@ class CustomerApp {
      */
     bindFilterEvents() {
         const statusFilter = document.getElementById('filter-status');
+        const subscriptionFilter = document.getElementById('filter-subscription');
         const dateFromFilter = document.getElementById('filter-date-from');
         const dateToFilter = document.getElementById('filter-date-to');
+        const sortByFilter = document.getElementById('sort-by');
+        const sortOrderFilter = document.getElementById('sort-order');
         const clearFiltersBtn = document.getElementById('btn-clear-filters');
         
-        [statusFilter, dateFromFilter, dateToFilter].forEach(element => {
+        [statusFilter, subscriptionFilter, dateFromFilter, dateToFilter, sortByFilter, sortOrderFilter].forEach(element => {
             if (element) {
                 element.addEventListener('change', () => {
                     this.applyFilters();
@@ -262,14 +266,20 @@ class CustomerApp {
     getCurrentFilters() {
         const searchInput = document.getElementById('search-customers');
         const statusInput = document.getElementById('filter-status');
+        const subscriptionInput = document.getElementById('filter-subscription');
         const dateFromInput = document.getElementById('filter-date-from');
         const dateToInput = document.getElementById('filter-date-to');
+        const sortByInput = document.getElementById('sort-by');
+        const sortOrderInput = document.getElementById('sort-order');
         
         return {
             search: searchInput?.value?.trim() || '',
             status: statusInput?.value || '',
+            subscription_filter: subscriptionInput?.value || '',
             date_from: dateFromInput?.value || '',
-            date_to: dateToInput?.value || ''
+            date_to: dateToInput?.value || '',
+            sort_by: sortByInput?.value || 'stripe_created_at',
+            sort_order: sortOrderInput?.value || 'desc'
         };
     }
 
@@ -291,13 +301,19 @@ class CustomerApp {
     clearFilters() {
         const searchInput = document.getElementById('search-customers');
         const statusInput = document.getElementById('filter-status');
+        const subscriptionInput = document.getElementById('filter-subscription');
         const dateFromInput = document.getElementById('filter-date-from');
         const dateToInput = document.getElementById('filter-date-to');
+        const sortByInput = document.getElementById('sort-by');
+        const sortOrderInput = document.getElementById('sort-order');
         
         if (searchInput) searchInput.value = '';
         if (statusInput) statusInput.value = '';
+        if (subscriptionInput) subscriptionInput.value = '';
         if (dateFromInput) dateFromInput.value = '';
         if (dateToInput) dateToInput.value = '';
+        if (sortByInput) sortByInput.value = 'stripe_created_at';
+        if (sortOrderInput) sortOrderInput.value = 'desc';
         
         // Reset to default date range
         this.setDefaultDateRange();

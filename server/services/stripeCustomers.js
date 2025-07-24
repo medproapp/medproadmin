@@ -69,7 +69,7 @@ class StripeCustomerService {
             
             const subscriptions = await this.stripe.subscriptions.list({
                 customer: customerId,
-                expand: ['data.default_payment_method', 'data.items.data.price.product']
+                expand: ['data.default_payment_method', 'data.items.data.price']
             });
             
             logger.info('Successfully fetched customer subscriptions', { 

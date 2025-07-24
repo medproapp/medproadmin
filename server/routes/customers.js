@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
             limit = 20,
             search,
             status,
+            subscription_filter: subscriptionFilter,
             date_from: dateFrom,
             date_to: dateTo,
             sort_by: sortBy = 'created_at',
@@ -34,8 +35,11 @@ router.get('/', async (req, res) => {
         const filters = {
             search: search ? search.trim() : null,
             status,
+            subscriptionFilter,
             dateFrom,
-            dateTo
+            dateTo,
+            sortBy,
+            sortOrder
         };
 
         const pagination = {
@@ -154,12 +158,21 @@ router.get('/:id/subscriptions', async (req, res) => {
     try {
         const { id: stripeCustomerId } = req.params;
 
-        logger.info('Fetching customer subscriptions', { 
+        logger.info('🎯 API: Fetching customer subscriptions', { 
             stripeCustomerId, 
             adminEmail: req.user.email 
         });
 
         const subscriptions = await CustomerSubscription.findByCustomer(stripeCustomerId);
+
+        logger.info('✅ API: Subscription response', {
+            stripeCustomerId,
+            count: subscriptions.length,
+            response: {
+                success: true,
+                data: { count: subscriptions.length }
+            }
+        });
 
         res.json({
             success: true,

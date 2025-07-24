@@ -32,6 +32,11 @@ class ProductFormatter {
         return this.currencyFormatter.format(amount);
     }
     
+    // Format price (alias for formatCurrency)
+    formatPrice(cents, currency = 'BRL') {
+        return this.formatCurrency(cents, currency);
+    }
+    
     // Format large numbers
     formatNumber(num) {
         if (!num && num !== 0) return '0';

@@ -234,13 +234,17 @@
 /* Product Actions */
 .product-actions {
     display: flex;
-    gap: var(--space-sm);
+    flex-wrap: wrap;
+    gap: var(--space-xs);
     padding-left: 30px;
+    margin-top: var(--space-md);
 }
 
 .product-actions .btn {
     font-size: var(--font-size-small);
     padding: var(--space-xs) var(--space-sm);
+    flex: 0 0 auto;
+    min-width: fit-content;
 }
 
 /* Loading Placeholder */
@@ -490,5 +494,296 @@
     
     .product-actions .btn {
         width: 100%;
+    }
+}
+
+/* Inactive Product Styles */
+.inactive-metadata-section {
+    margin-top: var(--space-md);
+    text-align: center;
+}
+
+.inactive-metadata-section .btn {
+    min-width: 200px;
+}
+
+.product-card.inactive .product-header {
+    margin-bottom: 0;
+}
+
+.product-card.inactive .product-title {
+    margin-bottom: var(--space-xs);
+}
+
+/* Inactive Metadata Viewer Modal */
+.inactive-metadata-viewer .metadata-raw pre {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Static Page Sync Styles */
+.static-sync-container {
+    min-height: 500px;
+}
+
+/* Sync Progress Steps */
+.sync-progress {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.sync-progress::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--admin-border);
+    z-index: 1;
+}
+
+.progress-step {
+    position: relative;
+    text-align: center;
+    flex: 1;
+    z-index: 2;
+}
+
+.progress-step.active .step-number {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.progress-step.active ~ .progress-step::before {
+    background: var(--primary);
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--admin-border);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+.step-label {
+    font-size: var(--font-size-small);
+    color: var(--admin-text-muted);
+    font-weight: 500;
+}
+
+.progress-step.active .step-label {
+    color: var(--primary);
+}
+
+/* Plan Selection Cards */
+.plan-selection-card {
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    padding: var(--space-lg);
+    height: 100%;
+    background: white;
+}
+
+.plan-title {
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.plan-description {
+    margin-bottom: var(--space-lg);
+    font-size: var(--font-size-small);
+}
+
+/* Product Selection Cards */
+.product-selection-card {
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    transition: var(--transition-base);
+    cursor: pointer;
+}
+
+.product-selection-card:hover {
+    border-color: var(--primary);
+    background: #f8f9fa;
+}
+
+.product-selection-card .form-check {
+    margin: 0;
+}
+
+.product-selection-card .form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+
+.product-info {
+    margin-left: var(--space-sm);
+}
+
+.product-name {
+    font-weight: 500;
+    margin-bottom: var(--space-xs);
+}
+
+.product-details {
+    margin-bottom: var(--space-xs);
+}
+
+.product-selection-card input[type="radio"]:checked ~ label {
+    color: var(--primary);
+}
+
+.product-selection-card input[type="radio"]:checked ~ label .product-name {
+    font-weight: 600;
+}
+
+/* Selected Product Info */
+.selected-product-info {
+    margin-top: var(--space-md);
+}
+
+.selected-product-info .alert {
+    margin: 0;
+    border-left: 4px solid var(--success);
+}
+
+/* Selection Summary */
+.selection-summary {
+    border-top: 1px solid var(--admin-border);
+    padding-top: var(--space-md);
+}
+
+/* Configuration Panel */
+.configuration-panel {
+    padding: var(--space-lg);
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.configuration-panel h6 {
+    margin-bottom: var(--space-lg);
+    font-weight: 600;
+}
+
+.configuration-panel .form-check {
+    margin-bottom: var(--space-md);
+}
+
+.configuration-panel .form-check-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-weight: 500;
+}
+
+/* Pricing Preview */
+.pricing-preview {
+    background: white;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    padding: var(--space-lg);
+}
+
+/* Preview Panel */
+.preview-panel {
+    padding: var(--space-md);
+}
+
+.preview-container {
+    margin-top: var(--space-lg);
+}
+
+.preview-frame {
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    padding: var(--space-lg);
+    min-height: 300px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    text-align: center;
+    color: var(--admin-text-muted);
+}
+
+.loading-spinner i {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-sm);
+}
+
+/* Apply Panel */
+.apply-panel {
+    padding: var(--space-xl);
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sync-status .loading-state,
+.sync-status .success-state,
+.sync-status .error-state {
+    text-align: center;
+}
+
+.sync-status .loading-state i,
+.sync-status .success-state i,
+.sync-status .error-state i {
+    margin-bottom: var(--space-md);
+}
+
+.sync-status h5 {
+    margin-bottom: var(--space-sm);
+    font-weight: 600;
+}
+
+.sync-status p {
+    margin-bottom: var(--space-lg);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .sync-progress {
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+    
+    .sync-progress::before {
+        display: none;
+    }
+    
+    .progress-step {
+        display: flex;
+        align-items: center;
+        text-align: left;
+        gap: var(--space-md);
+    }
+    
+    .step-number {
+        margin-bottom: 0;
+        flex-shrink: 0;
+    }
+    
+    .preview-container .row > div {
+        margin-bottom: var(--space-lg);
     }
 }

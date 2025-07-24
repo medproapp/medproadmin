@@ -4,7 +4,7 @@ class ProductCatalogApp {
         this.currentFilters = {
             plan_type: '',
             user_tier: '',
-            active: '',
+            active: true,
             search: ''
         };
         
@@ -19,28 +19,24 @@ class ProductCatalogApp {
             recoveryWizard: null
         };
         
-        // Demo mode flag - will use mock data when backend is not available
-        this.demoMode = false;
     }
     
     async init() {
         // Check admin authentication
-        if (!this.demoMode) {
-            const auth = await checkAdminAuth();
-            if (!auth) {
-                return;
-            }
-            document.getElementById('admin-email').textContent = auth.email;
-        } else {
-            // Demo mode - show demo user
-            document.getElementById('admin-email').textContent = 'demo@medpro.com';
+        const auth = await checkAdminAuth();
+        if (!auth) {
+            return;
         }
+        document.getElementById('admin-email').textContent = auth.email;
         
         // Initialize components
         this.initializeComponents();
         
         // Setup event listeners
         this.setupEventListeners();
+        
+        // Initialize UI state
+        this.initializeUIState();
         
         // Load initial data
         await this.loadProducts();
@@ -60,10 +56,23 @@ class ProductCatalogApp {
         // Other components will be initialized as needed
     }
     
+    initializeUIState() {
+        // Set the status filter dropdown to show "active" as selected
+        document.getElementById('filter-status').value = 'active';
+        
+        // Update filter tags to show the active filter
+        this.updateFilterTags();
+    }
+    
     setupEventListeners() {
         // New product button
         document.getElementById('btn-new-product').addEventListener('click', () => {
             this.createNewProduct();
+        });
+        
+        // Static Sync button
+        document.getElementById('btn-static-sync').addEventListener('click', () => {
+            this.showStaticSync();
         });
         
         // V3 Recovery button
@@ -94,7 +103,7 @@ class ProductCatalogApp {
                 this.currentFilters.active = false;
             } else if (e.target.value === 'issues') {
                 this.currentFilters.has_issues = true;
-                this.currentFilters.active = '';
+                this.currentFilters.active = true;
             } else {
                 this.currentFilters.active = '';
                 this.currentFilters.has_issues = false;
@@ -148,20 +157,20 @@ class ProductCatalogApp {
         try {
             this.components.productList.showLoading();
             
-            let products;
-            if (this.demoMode) {
-                // Use demo data
-                products = this.getDemoProducts();
-                // Apply filters
-                products = this.filterDemoProducts(products, this.currentFilters);
-            } else {
-                const response = await productAPI.getProducts(this.currentFilters);
-                
-                if (!response.success) {
-                    throw new Error(response.error || 'Failed to load products');
-                }
-                
-                products = response.data.products || [];
+            const response = await productAPI.getProducts(this.currentFilters);
+            
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load products');
+            }
+            
+            let products = response.data.products || [];
+            
+            // Apply client-side filtering for has_issues since backend doesn't handle this
+            if (this.currentFilters.has_issues) {
+                products = products.filter(product => {
+                    const issues = productValidator.detectProductIssues(product);
+                    return issues.length > 0;
+                });
             }
             
             // Ensure products is an array
@@ -280,23 +289,14 @@ class ProductCatalogApp {
                 this.components.productEditor = new ProductEditor();
             }
             
-            // In demo mode, find product from current list
-            if (this.demoMode) {
-                const products = this.getDemoProducts();
-                const product = products.find(p => p.stripe_product_id === productId);
-                if (product) {
-                    this.components.productEditor.showEditModal(product);
-                }
+            adminUtils.showLoading('Loading product...');
+            const response = await productAPI.getProduct(productId);
+            adminUtils.hideLoading();
+            
+            if (response.success) {
+                this.components.productEditor.showEditModal(response.data);
             } else {
-                adminUtils.showLoading('Loading product...');
-                const response = await productAPI.getProduct(productId);
-                adminUtils.hideLoading();
-                
-                if (response.success) {
-                    this.components.productEditor.showEditModal(response.data);
-                } else {
-                    throw new Error(response.error || 'Failed to load product');
-                }
+                throw new Error(response.error || 'Failed to load product');
             }
         } catch (error) {
             adminUtils.hideLoading();
@@ -307,46 +307,99 @@ class ProductCatalogApp {
     
     async viewMetadata(productId) {
         try {
-            // In demo mode, find product from current list
-            if (this.demoMode) {
-                const products = this.getDemoProducts();
-                const product = products.find(p => p.stripe_product_id === productId);
-                if (product) {
-                    const modal = new adminUtils.Modal({
-                        title: 'Product Metadata',
-                        content: `
-                            <div class="metadata-viewer">
-                                <div class="mb-3">
-                                    <h6>Product: ${product.name}</h6>
-                                    <small class="text-muted">ID: ${product.stripe_product_id}</small>
-                                </div>
-                                <pre class="bg-light p-3 rounded"><code>${JSON.stringify(product.metadata, null, 2)}</code></pre>
-                            </div>
-                        `,
-                        size: 'lg',
-                        footer: `
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" data-action="edit-from-metadata" data-product-id="${productId}">
-                                <i class="fas fa-edit"></i> Edit Product
-                            </button>
-                        `
-                    });
-                    modal.show();
-                    
-                    // Add event listener for the edit button
-                    const modalElement = modal.element;
-                    modalElement.addEventListener('click', (e) => {
-                        const button = e.target.closest('button[data-action="edit-from-metadata"]');
-                        if (button) {
-                            modal.hide();
-                            this.editProduct(button.dataset.productId);
-                        }
-                    });
-                }
+            adminUtils.showLoading('Carregando metadata...');
+            
+            const response = await productAPI.getProduct(productId);
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load product');
             }
+            
+            adminUtils.hideLoading();
+            
+            const product = response.data;
+            const modal = new adminUtils.Modal({
+                title: 'Product Metadata',
+                content: `
+                    <div class="metadata-viewer">
+                        <div class="mb-3">
+                            <h6>Product: ${product.name}</h6>
+                            <small class="text-muted">ID: ${product.stripe_product_id}</small>
+                        </div>
+                        <pre class="bg-light p-3 rounded"><code>${JSON.stringify(product.metadata, null, 2)}</code></pre>
+                    </div>
+                `,
+                size: 'lg',
+                footer: `
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" data-action="edit-from-metadata" data-product-id="${productId}">
+                        <i class="fas fa-edit"></i> Edit Product
+                    </button>
+                `
+            });
+            modal.show();
+            
+            // Add event listener for the edit button
+            const modalElement = modal.element;
+            modalElement.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action="edit-from-metadata"]');
+                if (button) {
+                    modal.hide();
+                    this.editProduct(button.dataset.productId);
+                }
+            });
         } catch (error) {
+            adminUtils.hideLoading();
             console.error('View metadata error:', error);
             adminUtils.showToast('Error loading metadata', 'error');
+        }
+    }
+
+    async viewInactiveMetadata(productId) {
+        try {
+            adminUtils.showLoading('Carregando metadata...');
+            
+            const response = await productAPI.getProduct(productId);
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load product');
+            }
+            
+            const product = response.data;
+            
+            adminUtils.hideLoading();
+            
+            if (product) {
+                // Create simple modal for inactive product metadata
+                const modal = new adminUtils.Modal({
+                    title: 'Raw Metadata - Produto Inativo',
+                    content: `
+                        <div class="inactive-metadata-viewer">
+                            <div class="mb-3">
+                                <h6 class="text-muted">
+                                    <i class="fas fa-eye-slash"></i> ${product.name}
+                                </h6>
+                                <small class="text-muted">ID: ${product.stripe_product_id}</small>
+                                <span class="badge bg-secondary ms-2">Inativo</span>
+                            </div>
+                            
+                            <div class="metadata-raw">
+                                <h6>Metadata Bruto:</h6>
+                                <pre class="bg-dark text-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>${JSON.stringify(product, null, 2)}</code></pre>
+                            </div>
+                        </div>
+                    `,
+                    size: 'lg',
+                    footer: `
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Fechar
+                        </button>
+                    `
+                });
+                modal.show();
+            }
+        } catch (error) {
+            adminUtils.hideLoading();
+            console.error('View inactive metadata error:', error);
+            adminUtils.showToast('Erro ao carregar metadata', 'error');
         }
     }
     
@@ -357,23 +410,14 @@ class ProductCatalogApp {
                 this.components.priceManager = window.priceManager;
             }
             
-            // In demo mode, find product from current list
-            if (this.demoMode) {
-                const products = this.getDemoProducts();
-                const product = products.find(p => p.stripe_product_id === productId);
-                if (product) {
-                    this.components.priceManager.showModal(product);
-                }
+            adminUtils.showLoading('Loading product...');
+            const response = await productAPI.getProduct(productId);
+            adminUtils.hideLoading();
+            
+            if (response.success) {
+                this.components.priceManager.showModal(response.data);
             } else {
-                adminUtils.showLoading('Loading product...');
-                const response = await productAPI.getProduct(productId);
-                adminUtils.hideLoading();
-                
-                if (response.success) {
-                    this.components.priceManager.showModal(response.data);
-                } else {
-                    throw new Error(response.error || 'Failed to load product');
-                }
+                throw new Error(response.error || 'Failed to load product');
             }
         } catch (error) {
             adminUtils.hideLoading();
@@ -384,40 +428,44 @@ class ProductCatalogApp {
     
     async cloneProduct(productId) {
         try {
-            // In demo mode, find product from current list
-            if (this.demoMode) {
-                const products = this.getDemoProducts();
-                const product = products.find(p => p.stripe_product_id === productId);
-                if (product) {
-                    // Create a copy of the product
-                    const clonedProduct = {
-                        ...product,
-                        stripe_product_id: null, // Will be generated
-                        name: product.name + ' (Copy)',
-                        active: false // Start as inactive
-                    };
-                    
-                    // Initialize product editor if not already done
-                    if (!this.components.productEditor) {
-                        this.components.productEditor = new ProductEditor();
-                    }
-                    
-                    // Show create modal with cloned data
-                    const modal = this.components.productEditor.showCreateModal();
-                    
-                    // Pre-fill the form with cloned data
-                    modal.on('show', () => {
-                        setTimeout(() => {
-                            document.getElementById('product-name').value = clonedProduct.name;
-                            document.getElementById('product-description').value = clonedProduct.description;
-                            document.getElementById('product-plan-type').value = clonedProduct.metadata?.classification?.plan_type || '';
-                            document.getElementById('product-user-tier').value = clonedProduct.metadata?.classification?.user_tier || '';
-                            adminUtils.showToast('Product data cloned. Please review and save.', 'info');
-                        }, 100);
-                    });
-                }
+            adminUtils.showLoading('Loading product...');
+            const response = await productAPI.getProduct(productId);
+            adminUtils.hideLoading();
+            
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load product');
             }
+            
+            const product = response.data;
+            
+            // Create a copy of the product
+            const clonedProduct = {
+                ...product,
+                stripe_product_id: null, // Will be generated
+                name: product.name + ' (Copy)',
+                active: false // Start as inactive
+            };
+            
+            // Initialize product editor if not already done
+            if (!this.components.productEditor) {
+                this.components.productEditor = new ProductEditor();
+            }
+            
+            // Show create modal with cloned data
+            const modal = this.components.productEditor.showCreateModal();
+            
+            // Pre-fill the form with cloned data
+            modal.on('show', () => {
+                setTimeout(() => {
+                    document.getElementById('product-name').value = clonedProduct.name;
+                    document.getElementById('product-description').value = clonedProduct.description;
+                    document.getElementById('product-plan-type').value = clonedProduct.metadata?.classification?.plan_type || '';
+                    document.getElementById('product-user-tier').value = clonedProduct.metadata?.classification?.user_tier || '';
+                    adminUtils.showToast('Product data cloned. Please review and save.', 'info');
+                }, 100);
+            });
         } catch (error) {
+            adminUtils.hideLoading();
             console.error('Clone product error:', error);
             adminUtils.showToast('Error cloning product', 'error');
         }
@@ -450,6 +498,15 @@ class ProductCatalogApp {
         this.loadProducts();
     }
     
+    async showStaticSync() {
+        // Initialize static sync component if not already done
+        if (!this.components.staticPageSync) {
+            this.components.staticPageSync = window.staticPageSync;
+        }
+        
+        this.components.staticPageSync.showModal();
+    }
+
     async startV3Recovery() {
         // Initialize recovery wizard if not already done
         if (!this.components.recoveryWizard) {
@@ -527,143 +584,6 @@ class ProductCatalogApp {
         adminUtils.showToast('Produtos excluídos com sucesso', 'success');
         this.components.productList.deselectAll();
         this.loadProducts();
-    }
-    
-    // Demo data methods
-    getDemoProducts() {
-        return [
-            {
-                stripe_product_id: 'prod_v3_clinic_10users',
-                name: 'MedPro v3 - Plano Clínica - 10 usuários',
-                description: 'Sistema completo de gestão de clínica médica para até 10 usuários',
-                active: true,
-                metadata: {
-                    classification: {
-                        plan_type: 'CLINIC',
-                        user_tier: 10
-                    },
-                    subscription_limits: {
-                        patients: { max_patients: 1000 },
-                        users: { practitioners: 10, assistants: 5 }
-                    },
-                    ai_quotas: {
-                        tokens: { monthly_limit: 500000, daily_limit: 20000 }
-                    }
-                },
-                prices: [
-                    { stripe_price_id: 'price_1', unit_amount: 53125, currency: 'BRL', billing_period: 'month', active: true },
-                    { stripe_price_id: 'price_2', unit_amount: 286875, currency: 'BRL', billing_period: 'semester', active: true },
-                    { stripe_price_id: 'price_3', unit_amount: 510000, currency: 'BRL', billing_period: 'year', active: true }
-                ],
-                sync_status: 'synced'
-            },
-            {
-                stripe_product_id: 'prod_clinic_5users',
-                name: 'MedPro - Plano Clínica - 5 usuários', // Missing v3
-                description: 'Sistema de gestão de clínica médica para até 5 usuários',
-                active: true,
-                metadata: {
-                    classification: {
-                        plan_type: 'CLINIC',
-                        user_tier: 5
-                    },
-                    subscription_limits: {
-                        patients: { max_patients: 500 }
-                    }
-                    // Missing AI quotas
-                },
-                prices: [
-                    { stripe_price_id: 'price_4', unit_amount: 26500, currency: 'BRL', billing_period: 'month', active: true, lookup_key: 'clinic_5users_monthly' } // Wrong lookup key
-                ],
-                sync_status: 'synced'
-            },
-            {
-                stripe_product_id: 'prod_v3_scheduling_20users',
-                name: 'MedPro v3 - Plano Agendamento - 20 usuários',
-                description: 'Sistema de agendamento para até 20 usuários',
-                active: true,
-                metadata: {
-                    classification: {
-                        plan_type: 'SCHEDULING',
-                        user_tier: 20
-                    },
-                    subscription_limits: {
-                        patients: { max_patients: 2000 },
-                        users: { practitioners: 20, assistants: 10 }
-                    },
-                    ai_quotas: {
-                        tokens: { monthly_limit: 1000000, daily_limit: 40000 }
-                    }
-                },
-                prices: [
-                    { stripe_price_id: 'price_5', unit_amount: 85000, currency: 'BRL', billing_period: 'month', active: true }
-                    // Missing semester and annual prices
-                ],
-                sync_status: 'error'
-            },
-            {
-                stripe_product_id: 'prod_v3_clinic_50users',
-                name: 'MedPro v3 - Plano Clínica - 50 usuários',
-                description: 'Sistema completo para grandes clínicas',
-                active: false,
-                metadata: {
-                    classification: {
-                        plan_type: 'CLINIC',
-                        user_tier: 50
-                    },
-                    subscription_limits: {
-                        patients: { max_patients: 5000 },
-                        users: { practitioners: 50, assistants: 25 }
-                    },
-                    ai_quotas: {
-                        tokens: { monthly_limit: 2500000, daily_limit: 100000 }
-                    }
-                },
-                prices: [
-                    { stripe_price_id: 'price_6', unit_amount: 212500, currency: 'BRL', billing_period: 'month', active: false }
-                ],
-                sync_status: 'synced'
-            }
-        ];
-    }
-    
-    filterDemoProducts(products, filters) {
-        return products.filter(product => {
-            // Filter by plan type
-            if (filters.plan_type && product.metadata?.classification?.plan_type !== filters.plan_type) {
-                return false;
-            }
-            
-            // Filter by user tier
-            if (filters.user_tier && product.metadata?.classification?.user_tier !== parseInt(filters.user_tier)) {
-                return false;
-            }
-            
-            // Filter by status
-            if (filters.active !== '' && product.active !== filters.active) {
-                return false;
-            }
-            
-            // Filter by issues
-            if (filters.has_issues) {
-                const issues = productValidator.detectProductIssues(product);
-                if (issues.length === 0) {
-                    return false;
-                }
-            }
-            
-            // Filter by search
-            if (filters.search) {
-                const searchLower = filters.search.toLowerCase();
-                const nameMatch = product.name.toLowerCase().includes(searchLower);
-                const descMatch = product.description?.toLowerCase().includes(searchLower);
-                if (!nameMatch && !descMatch) {
-                    return false;
-                }
-            }
-            
-            return true;
-        });
     }
 }
 

@@ -14,7 +14,9 @@ router.get('/', verifyToken, async (req, res) => {
         let sqlQuery = `
             SELECT 
                 p.id, p.stripe_product_id, p.name, p.description, p.plan_type, 
-                p.user_tier, p.active, p.metadata, p.stripe_created_at, 
+                p.user_tier, p.max_users, p.ai_quota_monthly, p.is_enterprise,
+                p.trial_eligible, p.target_audience, p.is_popular, p.is_free_plan,
+                p.active, p.metadata, p.stripe_created_at, 
                 p.sync_status, p.sync_error, p.last_synced_at, p.created_at, 
                 p.updated_at, p.created_by, p.updated_by,
                 COUNT(DISTINCT pr.id) as price_count,
@@ -56,7 +58,9 @@ router.get('/', verifyToken, async (req, res) => {
         
         // Group by product - include all non-aggregated columns for MySQL strict mode
         sqlQuery += ` GROUP BY p.id, p.stripe_product_id, p.name, p.description, p.plan_type, 
-                      p.user_tier, p.active, p.metadata, p.stripe_created_at, 
+                      p.user_tier, p.max_users, p.ai_quota_monthly, p.is_enterprise,
+                      p.trial_eligible, p.target_audience, p.is_popular, p.is_free_plan,
+                      p.active, p.metadata, p.stripe_created_at, 
                       p.sync_status, p.sync_error, p.last_synced_at, p.created_at, 
                       p.updated_at, p.created_by, p.updated_by`;
         
@@ -84,14 +88,49 @@ router.get('/', verifyToken, async (req, res) => {
             `;
             product.prices = await executeQuery(adminPool, pricesQuery, [product.stripe_product_id]);
             
-            // Parse metadata
+            // Parse original metadata first
+            let originalMetadata = {};
             if (product.metadata) {
                 try {
-                    product.metadata = JSON.parse(product.metadata);
+                    originalMetadata = JSON.parse(product.metadata);
                 } catch (e) {
-                    product.metadata = {};
+                    originalMetadata = {};
                 }
             }
+            
+            // Structure metadata for frontend compatibility
+            product.metadata = {
+                ...originalMetadata,
+                classification: {
+                    plan_type: product.plan_type,
+                    user_tier: product.user_tier,
+                    market_segment: product.target_audience,
+                    ...(originalMetadata.classification || {})
+                },
+                subscription_limits: {
+                    patients: {
+                        max_patients: product.max_users || 0
+                    },
+                    users: {
+                        practitioners: product.user_tier || 0,
+                        assistants: Math.floor((product.user_tier || 0) / 2)
+                    },
+                    ...(originalMetadata.subscription_limits || {})
+                },
+                ai_quotas: {
+                    tokens: {
+                        monthly_limit: product.ai_quota_monthly || 0
+                    },
+                    ...(originalMetadata.ai_quotas || {})
+                },
+                features: {
+                    enterprise: product.is_enterprise || false,
+                    trial_eligible: product.trial_eligible || false,
+                    popular: product.is_popular || false,
+                    free_plan: product.is_free_plan || false,
+                    ...(originalMetadata.features || {})
+                }
+            };
         }
         
         // Get total count

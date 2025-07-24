@@ -399,10 +399,40 @@ class CustomerSyncService {
 
     async syncCustomerSubscriptions(stripeCustomerId, syncStats) {
         try {
+            logger.info('🔄 Starting subscription sync for customer', { 
+                customerId: stripeCustomerId,
+                currentStats: syncStats.subscriptions
+            });
+            
             const subscriptions = await this.stripe.listSubscriptions(stripeCustomerId);
+            
+            logger.info('📋 Stripe API response for customer subscriptions', {
+                customerId: stripeCustomerId,
+                subscriptionCount: subscriptions.data.length,
+                hasMore: subscriptions.has_more,
+                subscriptions: subscriptions.data.map(sub => ({
+                    id: sub.id,
+                    status: sub.status,
+                    product: sub.items.data[0]?.price?.product,
+                    price: sub.items.data[0]?.price?.id
+                }))
+            });
+            
+            if (subscriptions.data.length === 0) {
+                logger.info('⚠️ No subscriptions found for customer', { customerId: stripeCustomerId });
+                return;
+            }
             
             for (const stripeSubscription of subscriptions.data) {
                 try {
+                    logger.info('🔍 Processing individual subscription', {
+                        subscriptionId: stripeSubscription.id,
+                        customerId: stripeCustomerId,
+                        status: stripeSubscription.status,
+                        priceId: stripeSubscription.items.data[0]?.price?.id,
+                        productId: stripeSubscription.items.data[0]?.price?.product
+                    });
+                    
                     const subscription = new CustomerSubscription({
                         stripe_subscription_id: stripeSubscription.id,
                         stripe_customer_id: stripeSubscription.customer,
@@ -423,25 +453,49 @@ class CustomerSyncService {
                         metadata: stripeSubscription.metadata
                     });
 
+                    logger.info('💾 Checking if subscription exists in database', {
+                        subscriptionId: stripeSubscription.id
+                    });
+
                     const existingSubscription = await CustomerSubscription.findByStripeId(
                         stripeSubscription.id
                     );
 
                     if (existingSubscription) {
+                        logger.info('🔄 Updating existing subscription', {
+                            subscriptionId: stripeSubscription.id
+                        });
                         await subscription.update();
                         syncStats.subscriptions.updated++;
+                        logger.info('✅ Subscription updated successfully', {
+                            subscriptionId: stripeSubscription.id
+                        });
                     } else {
+                        logger.info('➕ Creating new subscription', {
+                            subscriptionId: stripeSubscription.id
+                        });
                         await subscription.create();
                         syncStats.subscriptions.created++;
+                        logger.info('✅ Subscription created successfully', {
+                            subscriptionId: stripeSubscription.id
+                        });
                     }
 
                     syncStats.subscriptions.processed++;
+                    
+                    logger.info('📊 Subscription processing complete', {
+                        subscriptionId: stripeSubscription.id,
+                        processed: syncStats.subscriptions.processed,
+                        created: syncStats.subscriptions.created,
+                        updated: syncStats.subscriptions.updated
+                    });
 
                 } catch (subError) {
-                    logger.error('Error syncing subscription:', { 
+                    logger.error('❌ Error syncing individual subscription:', { 
                         subscriptionId: stripeSubscription.id,
                         customerId: stripeCustomerId,
-                        error: subError.message 
+                        error: subError.message,
+                        stack: subError.stack
                     });
                     
                     syncStats.subscriptions.errors.push({
@@ -451,11 +505,21 @@ class CustomerSyncService {
                     });
                 }
             }
+            
+            logger.info('✅ Subscription sync completed for customer', {
+                customerId: stripeCustomerId,
+                totalSubscriptions: subscriptions.data.length,
+                processed: syncStats.subscriptions.processed,
+                created: syncStats.subscriptions.created,
+                updated: syncStats.subscriptions.updated,
+                errors: syncStats.subscriptions.errors.length
+            });
 
         } catch (error) {
-            logger.error('Error fetching customer subscriptions:', { 
+            logger.error('❌ Error fetching customer subscriptions from Stripe:', { 
                 customerId: stripeCustomerId, 
-                error: error.message 
+                error: error.message,
+                stack: error.stack
             });
             
             syncStats.subscriptions.errors.push({

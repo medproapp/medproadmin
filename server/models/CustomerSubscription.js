@@ -20,6 +20,8 @@ class CustomerSubscription {
 
     static async findByCustomer(stripeCustomerId) {
         try {
+            logger.info('🔍 Finding subscriptions for customer', { stripeCustomerId });
+            
             const query = `
                 SELECT 
                     cs.*,
@@ -37,6 +39,17 @@ class CustomerSubscription {
             `;
 
             const subscriptions = await executeQuery(adminPool, query, [stripeCustomerId]);
+            logger.info('📊 Subscription query results', { 
+                stripeCustomerId, 
+                found: subscriptions.length,
+                subscriptions: subscriptions.map(s => ({
+                    id: s.stripe_subscription_id,
+                    status: s.status,
+                    product: s.product_name,
+                    amount: s.unit_amount
+                }))
+            });
+            
             return subscriptions;
         } catch (error) {
             logger.error('Error finding subscriptions by customer:', { stripeCustomerId, error });

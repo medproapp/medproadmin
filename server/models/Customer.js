@@ -25,7 +25,7 @@ class Customer {
 
     static async findAll(filters = {}, pagination = {}) {
         try {
-            const { page = 1, limit = 20, search, status, dateFrom, dateTo } = { ...filters, ...pagination };
+            const { page = 1, limit = 20, search, status, subscriptionFilter, dateFrom, dateTo, sortBy = 'stripe_created_at', sortOrder = 'desc' } = { ...filters, ...pagination };
             const offset = (page - 1) * limit;
 
             let whereClause = 'WHERE 1=1';
@@ -59,6 +59,26 @@ class Customer {
                 whereClause += ' AND DATE(c.stripe_created_at) <= ?';
                 params.push(dateTo);
             }
+
+            // Handle subscription filter
+            if (subscriptionFilter === 'with_subscriptions') {
+                whereClause += ' AND c.stripe_customer_id IN (SELECT DISTINCT stripe_customer_id FROM customer_subscriptions)';
+            } else if (subscriptionFilter === 'without_subscriptions') {
+                whereClause += ' AND c.stripe_customer_id NOT IN (SELECT DISTINCT stripe_customer_id FROM customer_subscriptions)';
+            }
+
+            // Build ORDER BY clause
+            const allowedSortFields = {
+                'stripe_created_at': 'c.stripe_created_at',
+                'name': 'c.name',
+                'email': 'c.email',
+                'total_subscriptions': 'COALESCE(sub_count.total_subscriptions, 0)',
+                'lifetime_value': 'COALESCE(metrics.lifetime_value, 0)'
+            };
+            
+            const sortField = allowedSortFields[sortBy] || 'c.stripe_created_at';
+            const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+            const orderByClause = `ORDER BY ${sortField} ${sortDirection}`;
 
             const countQuery = `
                 SELECT COUNT(*) as total 
@@ -98,7 +118,7 @@ class Customer {
                     GROUP BY stripe_customer_id
                 ) metrics ON c.stripe_customer_id = metrics.stripe_customer_id
                 ${whereClause}
-                ORDER BY c.stripe_created_at DESC
+                ${orderByClause}
                 LIMIT ${limit} OFFSET ${offset}
             `;
 
