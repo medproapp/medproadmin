@@ -19,7 +19,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
             fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:"],
@@ -86,6 +86,8 @@ app.use('/api/v1/customers', require('./routes/customers'));
 app.use('/api/v1/segments', require('./routes/segments'));
 app.use('/api/v1/churn', require('./routes/churn'));
 app.use('/api/v1/analytics', require('./routes/analytics'));
+app.use('/api/v1/environments', require('./routes/environments'));
+app.use('/api/v1/users', require('./routes/users'));
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -134,13 +136,45 @@ const server = app.listen(PORT, () => {
     logger.info(`Frontend available at: http://localhost:${PORT}/medproadmin`);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
+// Import cleanup functions
+const { cleanupMonitoringConnections } = require('./routes/environments');
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal) => {
+    logger.info(`${signal} signal received: initiating graceful shutdown`);
+    
+    // Stop accepting new connections
+    server.close(async () => {
         logger.info('HTTP server closed');
-        process.exit(0);
+        
+        try {
+            // Cleanup monitoring connections
+            await cleanupMonitoringConnections();
+            
+            // Close database connections
+            const { adminPool } = require('./config/database');
+            if (adminPool) {
+                await adminPool.end();
+                logger.info('Database connections closed');
+            }
+            
+            logger.info('Graceful shutdown completed');
+            process.exit(0);
+        } catch (error) {
+            logger.error('Error during graceful shutdown:', error);
+            process.exit(1);
+        }
     });
-});
+    
+    // Force exit after 15 seconds
+    setTimeout(() => {
+        logger.error('Graceful shutdown timed out, forcing exit');
+        process.exit(1);
+    }, 15000);
+};
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = app;

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environment Monitor - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link href="css/environments.css" rel="stylesheet">
+    <link href="css/monitor.css" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <!-- Environment Selector -->
+                    <div class="environment-selector-container d-inline-block me-3">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="environmentSelector" data-bs-toggle="dropdown">
+                                <i class="fas fa-server"></i>
+                                <span id="current-env-name">Loading...</span>
+                            </button>
+                            <ul class="dropdown-menu" id="environment-dropdown">
+                                <li><span class="dropdown-item-text text-muted">Loading environments...</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/analytics.html">
+                            <i class="fas fa-chart-bar"></i> Customer Analytics
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li class="active">
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/users/" id="user-management-nav" style="display: none;">
+                            <i class="fas fa-users-cog"></i> User Management
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin-content">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-chart-line text-primary"></i> Environment Monitor</h1>
+                        <p class="text-muted">Real-time monitoring and analytics for the selected environment</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm me-2" id="refresh-all-btn">
+                            <i class="fas fa-sync"></i> Refresh All
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm me-2" id="auto-refresh-toggle">
+                            <i class="fas fa-play"></i> Auto Refresh
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.location.href='/medproadmin/environments/'">
+                            <i class="fas fa-arrow-left"></i> Back to Environments
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Environment Status Bar -->
+            <div class="alert alert-info" id="environment-status">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="environment-status-text">Loading environment information...</span>
+                    <div class="ms-auto">
+                        <small class="text-muted">Last updated: <span id="last-update-time">--</span></small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Container -->
+            <div id="alert-container"></div>
+
+            <!-- Statistics Row -->
+                <div class="row mb-4">
+                    <!-- Server Health -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-server text-primary"></i>
+                                    Server Health
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" id="refresh-server-btn">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="server-health-content">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading server health...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Database Health -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-database text-success"></i>
+                                    Database Health
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" id="refresh-db-btn">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="database-health-content">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-success" role="status">
+                                            <span class="visually-hidden">Loading database health...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Analytics Row -->
+                <div class="row mb-4">
+                    <!-- Request Analytics -->
+                    <div class="col-lg-8 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-area text-info"></i>
+                                    Request Analytics
+                                </h5>
+                                <div class="analytics-controls">
+                                    <select class="form-select form-select-sm me-2" id="analytics-timeframe" style="width: auto; display: inline-block;">
+                                        <option value="1h">Last Hour</option>
+                                        <option value="6h">Last 6 Hours</option>
+                                        <option value="24h" selected>Last 24 Hours</option>
+                                        <option value="7d">Last 7 Days</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-primary" id="refresh-analytics-btn">
+                                        <i class="fas fa-sync"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-3 text-center">
+                                        <div class="analytics-metric">
+                                            <div class="metric-value" id="total-requests">
+                                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                            </div>
+                                            <div class="metric-label">Total Requests</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div class="analytics-metric">
+                                            <div class="metric-value" id="avg-response-time">
+                                                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                                            </div>
+                                            <div class="metric-label">Avg Response Time</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div class="analytics-metric">
+                                            <div class="metric-value" id="error-rate">
+                                                <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                                            </div>
+                                            <div class="metric-label">Error Rate</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-center">
+                                        <div class="analytics-metric">
+                                            <div class="metric-value" id="active-users">
+                                                <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+                                            </div>
+                                            <div class="metric-label">Active Users</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="requests-chart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Endpoints -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-list text-warning"></i>
+                                    Top Endpoints
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" id="refresh-endpoints-btn">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="top-endpoints-content">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-warning" role="status">
+                                            <span class="visually-hidden">Loading endpoints...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Metrics Row -->
+                <div class="row mb-4">
+                    <!-- Response Time Distribution -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-pie text-purple"></i>
+                                    Response Time Distribution
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" id="refresh-response-chart-btn">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="response-time-chart" width="300" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Code Distribution -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-bar text-teal"></i>
+                                    Status Code Distribution
+                                </h5>
+                                <button class="btn btn-sm btn-outline-primary" id="refresh-status-chart-btn">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="status-code-chart" width="300" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Logs -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-file-alt text-info"></i>
+                                    Live Server Logs
+                                </h5>
+                                <div class="log-controls">
+                                    <select class="form-select form-select-sm me-2" id="log-level-filter" style="width: auto; display: inline-block;">
+                                        <option value="">All Levels</option>
+                                        <option value="error">Error</option>
+                                        <option value="warn">Warning</option>
+                                        <option value="info">Info</option>
+                                        <option value="debug">Debug</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-danger me-2" id="clear-logs-btn">
+                                        <i class="fas fa-trash"></i> Clear
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary me-2" id="refresh-logs-btn">
+                                        <i class="fas fa-sync"></i> Refresh
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success" id="auto-scroll-toggle">
+                                        <i class="fas fa-arrow-down"></i> Auto Scroll
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="log-container" id="log-container">
+                                    <div class="log-loading text-center p-4">
+                                        <div class="spinner-border text-info" role="status">
+                                            <span class="visually-hidden">Loading logs...</span>
+                                        </div>
+                                        <p class="mt-2 mb-0">Loading server logs...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
+    <script src="js/services/environmentApi.js"></script>
+    <script src="js/services/monitorApi.js"></script>
+    <script src="js/components/environmentSelector.js"></script>
+    <script src="js/components/serverHealth.js"></script>
+    <script src="js/components/databaseHealth.js"></script>
+    <script src="js/components/serverLogs.js"></script>
+    <script src="js/components/realtimeAnalytics.js"></script>
+    <script src="js/monitorApp.js"></script>
+    <script src="js/monitor.js"></script>
+</body>
+</html>

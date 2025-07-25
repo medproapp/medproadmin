@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environment Management - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link href="css/environments.css" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 d-flex justify-content-center">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/recovery.html">
+                            <i class="fas fa-tools"></i> V3 Recovery
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/templates.html">
+                            <i class="fas fa-file-alt"></i> Templates
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/analytics.html">
+                            <i class="fas fa-chart-bar"></i> Customer Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/segments.html">
+                            <i class="fas fa-layer-group"></i> Customer Segments
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li class="active">
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/users/" id="user-management-nav" style="display: none;">
+                            <i class="fas fa-users-cog"></i> User Management
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin-content">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-server text-primary"></i> Environment Management</h1>
+                        <p class="text-muted">Manage MedPro database environments and connections</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-success" id="create-environment-btn">
+                            <i class="fas fa-plus"></i> New Environment
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Environment List Container -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list"></i> Environments
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Loading State -->
+                    <div id="loading-container" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading environments...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading environments...</p>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div id="error-container" class="alert alert-danger d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Error loading environments:</strong>
+                        <span id="error-message"></span>
+                        <button class="btn btn-sm btn-outline-danger ms-2" id="retry-load-btn">
+                            <i class="fas fa-retry"></i> Retry
+                        </button>
+                    </div>
+                    
+                    <!-- Environment List -->
+                    <div id="environments-container">
+                        <!-- Environments will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Environment Editor Modal -->
+    <div class="modal fade" id="environmentModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-server"></i>
+                        <span id="modal-title">New Environment</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Server Discovery Section -->
+                    <div id="discovery-section">
+                        <div class="text-center mb-4">
+                            <h6 class="text-muted">Enter server hostname to discover environment details</h6>
+                        </div>
+                        
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <label for="server-host" class="form-label fs-5">MedPro Server Hostname</label>
+                                            <input type="text" class="form-control form-control-lg" id="server-host" 
+                                                   placeholder="medpro-prod.company.com, localhost, or server IP"
+                                                   style="font-size: 1.1rem;">
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> Enter the hostname or IP where MedPro server is running
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="server-port" class="form-label fs-5">Port</label>
+                                            <input type="number" class="form-control form-control-lg" id="server-port" 
+                                                   placeholder="3000" value="3000" min="1" max="65535"
+                                                   style="font-size: 1.1rem;">
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> MedPro server port
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <button type="button" class="btn btn-primary btn-lg px-5" id="autodiscovery-btn">
+                                        <i class="fas fa-search me-2"></i> Discover MedPro Environment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Discovery Results Section -->
+                    <div id="discovery-results" class="d-none mt-4">
+                        <!-- Results will be populated here -->
+                    </div>
+                    
+                    <!-- Environment Form Section -->
+                    <div id="environment-form-section" class="d-none mt-4">
+                        <hr>
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-edit"></i> Review and Finalize Environment Details
+                        </h6>
+                        
+                        <form id="environment-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="env-name" class="form-label">Environment Name *</label>
+                                        <input type="text" class="form-control" id="env-name" required 
+                                               placeholder="e.g., medpro_production" pattern="^[a-zA-Z0-9_\-]+$">
+                                        <div class="form-text">Alphanumeric, underscore, and dash only</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="env-type" class="form-label">Environment Type *</label>
+                                        <select class="form-select" id="env-type" required>
+                                            <option value="">Select type...</option>
+                                            <option value="production">Production</option>
+                                            <option value="test">Test</option>
+                                            <option value="development">Development</option>
+                                            <option value="nqa">NQA</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="display-name" class="form-label">Display Name *</label>
+                                        <input type="text" class="form-control" id="display-name" required 
+                                               placeholder="e.g., MedPro Production">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="is-default" class="form-label">Default Environment</label>
+                                        <div class="form-check pt-2">
+                                            <input class="form-check-input" type="checkbox" id="is-default">
+                                            <label class="form-check-label" for="is-default">
+                                                Set as default
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" rows="2" 
+                                          placeholder="Environment description..."></textarea>
+                            </div>
+                            
+                            <!-- Hidden fields for database configuration (populated by discovery) -->
+                            <input type="hidden" id="db-host">
+                            <input type="hidden" id="db-port">
+                            <input type="hidden" id="db-name">
+                            <input type="hidden" id="db-user">
+                            <input type="hidden" id="db-password">
+                            <input type="hidden" id="api-base-url">
+                            <input type="hidden" id="color-theme">
+                            <input type="hidden" id="icon">
+                        </form>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-info d-none" id="test-connection-btn">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                    <button type="submit" form="environment-form" class="btn btn-success d-none" id="save-environment-btn">
+                        <i class="fas fa-save"></i> Create Environment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Connection Test Modal -->
+    <div class="modal fade" id="connectionTestModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plug"></i> Connection Test
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="connection-test-content">
+                        <!-- Test results will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
+    <script src="../shared/js/environmentSelector.js"></script>
+    <script src="js/services/environmentApi.js"></script>
+    <script src="js/components/environmentList.js"></script>
+    <script src="js/components/environmentEditor.js"></script>
+    <script src="js/components/connectionTest.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

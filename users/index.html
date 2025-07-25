@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link href="css/users.css" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 d-flex justify-content-center">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/recovery.html">
+                            <i class="fas fa-tools"></i> V3 Recovery
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/templates.html">
+                            <i class="fas fa-file-alt"></i> Templates
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/analytics.html">
+                            <i class="fas fa-chart-bar"></i> Customer Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/customers/segments.html">
+                            <i class="fas fa-layer-group"></i> Customer Segments
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li>
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li class="active">
+                        <a href="/medproadmin/users/">
+                            <i class="fas fa-users-cog"></i> User Management
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="admin-content">
+            <div class="page-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-users-cog text-primary"></i> User Management</h1>
+                        <p class="text-muted">Manage users from selected MedPro environment</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-info" id="view-stats-btn">
+                            <i class="fas fa-chart-bar"></i> Statistics
+                        </button>
+                        <!-- Analytics button removed - broken implementation -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Statistics Panel (hidden by default) -->
+            <div class="card mb-4 d-none" id="stats-panel">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie"></i> User Statistics
+                        </h5>
+                        <button class="btn btn-sm btn-outline-secondary" id="hide-stats-btn">
+                            <i class="fas fa-times"></i> Hide
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" id="stats-content">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading statistics...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Analytics Panel (hidden by default) -->
+            <!-- Analytics section removed - broken implementation -->
+            <!-- User List Container -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list"></i> Users
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Loading State -->
+                    <div id="loading-container" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading users...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading users...</p>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div id="error-container" class="alert alert-danger d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Error loading users:</strong>
+                        <span id="error-message"></span>
+                        <button class="btn btn-sm btn-outline-danger ms-2" id="retry-load-btn">
+                            <i class="fas fa-retry"></i> Retry
+                        </button>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div id="empty-container" class="text-center py-5 d-none">
+                        <div class="empty-state">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No users found</h5>
+                            <p class="text-muted">Try adjusting your filters or search criteria</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Users Table -->
+                    <div id="users-container" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-header" data-sort-field="fullname">
+                                            User 
+                                            <span class="sort-indicator sort-none"></span>
+                                        </th>
+                                        <th class="sortable-header" data-sort-field="role">
+                                            Role 
+                                            <span class="sort-indicator sort-none"></span>
+                                        </th>
+                                        <th>Status</th>
+                                        <th class="sortable-header" data-sort-field="plan">
+                                            Plan 
+                                            <span class="sort-indicator sort-none"></span>
+                                        </th>
+                                        <th class="sortable-header" data-sort-field="activatedate">
+                                            Activated 
+                                            <span class="sort-indicator sort-none"></span>
+                                        </th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- Users will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <nav aria-label="User pagination" class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-muted">
+                                    <span id="pagination-info">Showing 0 users</span>
+                                </div>
+                                <ul class="pagination mb-0" id="pagination-container">
+                                    <!-- Pagination will be populated here -->
+                                </ul>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
+    <script src="../shared/js/environmentSelector.js"></script>
+    <script src="js/services/userApi.js"></script>
+    <script src="js/components/userList.js"></script>
+    <script src="js/components/userStats.js"></script>
+    <script src="js/components/userDetail.js"></script>
+    <script src="js/components/userFilters.js"></script>
+    <!-- Analytics script removed - broken implementation -->
+    <script src="js/app.js"></script>
+</body>
+</html>

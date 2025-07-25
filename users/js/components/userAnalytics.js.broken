@@ -1,0 +1,490 @@
+/**
+ * User Analytics Component
+ * Handles user activity monitoring, session management, and advanced analytics
+ */
+
+class UserAnalytics {
+    constructor() {
+        this.currentEnvironmentId = null;
+        this.refreshInterval = null;
+        this.charts = {};
+        
+        this.initializeElements();
+        this.bindEvents();
+        this.startAutoRefresh();
+    }
+    
+    initializeElements() {
+        // Dashboard elements
+        this.analyticsContainer = document.getElementById('analytics-container');
+        this.analyticsContent = document.getElementById('analytics-content');
+        this.showAnalyticsBtn = document.getElementById('show-analytics-btn');
+        this.hideAnalyticsBtn = document.getElementById('hide-analytics-btn');
+        
+        // Metrics elements
+        this.metricsGrid = document.getElementById('metrics-grid');
+        this.activityChart = document.getElementById('activity-chart');
+        this.sessionsChart = document.getElementById('sessions-chart');
+        
+        // Real-time elements
+        this.activityFeed = document.getElementById('activity-feed');
+        this.activeSessions = document.getElementById('active-sessions');
+        this.lastUpdateTime = document.getElementById('last-update-time');
+        
+        // Period selector
+        this.periodSelector = document.getElementById('analytics-period');
+    }
+    
+    bindEvents() {
+        // Show/hide analytics panel
+        this.showAnalyticsBtn?.addEventListener('click', () => {
+            this.showAnalytics();
+        });
+        
+        this.hideAnalyticsBtn?.addEventListener('click', () => {
+            this.hideAnalytics();
+        });
+        
+        // Period change
+        this.periodSelector?.addEventListener('change', (e) => {
+            this.loadAnalytics(e.target.value);
+        });
+        
+        // Listen for environment changes
+        document.addEventListener('environmentChanged', (e) => {
+            this.currentEnvironmentId = e.detail.environmentId;
+            if (this.isVisible()) {
+                this.loadAnalytics();
+            }
+        });
+        
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-analytics-btn');
+        refreshBtn?.addEventListener('click', () => {
+            this.loadAnalytics();
+        });
+    }
+    
+    showAnalytics() {
+        if (!this.currentEnvironmentId) {
+            this.showNotification('Please select an environment first', 'warning');
+            return;
+        }
+        
+        this.analyticsContainer?.classList.remove('d-none');
+        this.showAnalyticsBtn?.classList.add('d-none');
+        this.loadAnalytics();
+    }
+    
+    hideAnalytics() {
+        this.analyticsContainer?.classList.add('d-none');
+        this.showAnalyticsBtn?.classList.remove('d-none');
+        this.stopAutoRefresh();
+    }
+    
+    isVisible() {
+        return !this.analyticsContainer?.classList.contains('d-none');
+    }
+    
+    async loadAnalytics(period = '30days') {
+        if (!this.currentEnvironmentId) return;
+        
+        try {
+            this.showLoading();
+            
+            // Load dashboard analytics, sessions, and activity feed in parallel
+            const [dashboardData, sessionsData, feedData] = await Promise.all([
+                this.loadDashboardData(period),
+                this.loadActiveSessions(),
+                this.loadActivityFeed()
+            ]);
+            
+            this.renderDashboard(dashboardData);
+            this.renderActiveSessions(sessionsData);
+            this.renderActivityFeed(feedData);
+            this.updateLastRefreshTime();
+            
+            this.hideLoading();
+            
+        } catch (error) {
+            console.error('Error loading analytics:', error);
+            this.showError('Failed to load analytics: ' + error.message);
+        }
+    }
+    
+    async loadDashboardData(period) {
+        const params = new URLSearchParams({
+            environment_id: this.currentEnvironmentId,
+            period: period
+        });
+        
+        const response = await authenticatedFetch(`/api/v1/analytics/user-activity/dashboard?${params}`);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to load dashboard data');
+        }
+        
+        return response.data;
+    }
+    
+    async loadActiveSessions() {
+        const params = new URLSearchParams({
+            environment_id: this.currentEnvironmentId
+        });
+        
+        const response = await authenticatedFetch(`/api/v1/analytics/user-activity/sessions?${params}`);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to load sessions');
+        }
+        
+        return response.data;
+    }
+    
+    async loadActivityFeed() {
+        const params = new URLSearchParams({
+            environment_id: this.currentEnvironmentId,
+            limit: 20
+        });
+        
+        const response = await authenticatedFetch(`/api/v1/analytics/user-activity/feed?${params}`);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to load activity feed');
+        }
+        
+        return response.data;
+    }
+    
+    renderDashboard(data) {
+        // Render summary metrics
+        this.renderMetrics(data.summary, data.realtimeMetrics);
+        
+        // Render charts
+        this.renderActivityChart(data.dailyData);
+        
+        // Update environment info
+        this.updateEnvironmentInfo(data.environment);
+    }
+    
+    renderMetrics(summary, realtime) {
+        if (!this.metricsGrid) return;
+        
+        const metrics = [
+            {
+                title: 'Total Actions',
+                value: summary.totalActions.toLocaleString(),
+                icon: 'fas fa-chart-line',
+                color: 'primary',
+                subtitle: `${summary.daysAnalyzed} days analyzed`
+            },
+            {
+                title: 'Success Rate',
+                value: `${summary.successRate}%`,
+                icon: 'fas fa-check-circle',
+                color: summary.successRate > 95 ? 'success' : summary.successRate > 90 ? 'warning' : 'danger',
+                subtitle: `${summary.successfulActions} successful`
+            },
+            {
+                title: 'User Actions',
+                value: summary.userActions.toLocaleString(),
+                icon: 'fas fa-users',
+                color: 'info',
+                subtitle: `${summary.environmentActions} env actions`
+            },
+            {
+                title: 'Active Users Today',
+                value: realtime ? realtime.active_users_today || 0 : 'N/A',
+                icon: 'fas fa-user-clock',
+                color: 'success',
+                subtitle: realtime ? `${realtime.logins_today || 0} logins` : 'Analytics pending'
+            }
+        ];
+        
+        this.metricsGrid.innerHTML = metrics.map(metric => `
+            <div class="col-md-3">
+                <div class="metric-card metric-${metric.color}">
+                    <div class="metric-icon">
+                        <i class="${metric.icon}"></i>
+                    </div>
+                    <div class="metric-content">
+                        <h3 class="metric-value">${metric.value}</h3>
+                        <p class="metric-title">${metric.title}</p>
+                        <small class="metric-subtitle">${metric.subtitle}</small>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    renderActivityChart(dailyData) {
+        if (!this.activityChart || !dailyData?.length) return;
+        
+        // Simple chart with Canvas API (you could use Chart.js for more advanced charts)
+        const canvas = this.activityChart;
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Chart dimensions
+        const margin = 40;
+        const chartWidth = canvas.width - 2 * margin;
+        const chartHeight = canvas.height - 2 * margin;
+        
+        // Data processing
+        const maxValue = Math.max(...dailyData.map(d => d.total_actions));
+        const dataPoints = dailyData.slice(-7); // Last 7 days
+        
+        // Draw axes
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(margin, margin);
+        ctx.lineTo(margin, margin + chartHeight);
+        ctx.lineTo(margin + chartWidth, margin + chartHeight);
+        ctx.stroke();
+        
+        // Draw data
+        if (dataPoints.length > 1) {
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            dataPoints.forEach((point, index) => {
+                const x = margin + (index * chartWidth) / (dataPoints.length - 1);
+                const y = margin + chartHeight - (point.total_actions / maxValue) * chartHeight;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw points
+            ctx.fillStyle = '#007bff';
+            dataPoints.forEach((point, index) => {
+                const x = margin + (index * chartWidth) / (dataPoints.length - 1);
+                const y = margin + chartHeight - (point.total_actions / maxValue) * chartHeight;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        // Add title
+        ctx.fillStyle = '#333';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Daily Activity (Last 7 Days)', canvas.width / 2, 20);
+    }
+    
+    renderActiveSessions(data) {
+        if (!this.activeSessions) return;
+        
+        const sessions = data.activeSessions || [];
+        
+        if (sessions.length === 0) {
+            this.activeSessions.innerHTML = `
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-user-slash fa-2x mb-2"></i>
+                    <p>No active sessions detected</p>
+                </div>
+            `;
+            return;
+        }
+        
+        this.activeSessions.innerHTML = `
+            <div class="session-summary mb-3">
+                <h6><i class="fas fa-users"></i> Active Sessions (${sessions.length})</h6>
+            </div>
+            <div class="session-list">
+                ${sessions.map(session => `
+                    <div class="session-item">
+                        <div class="session-user">
+                            <strong>${this.escapeHtml(session.user_email)}</strong>
+                            ${session.user_role ? `<span class="badge badge-sm bg-secondary ms-2">${session.user_role}</span>` : ''}
+                            ${session.is_simulated ? `<span class="badge badge-sm bg-warning ms-1">Simulated</span>` : ''}
+                        </div>
+                        <div class="session-details">
+                            <small class="text-muted">
+                                ${session.formatted_last_activity || 'Unknown time'} 
+                                ${session.duration_minutes ? `• ${session.duration_minutes}m` : ''}
+                                ${session.ip_address ? `• ${session.ip_address}` : ''}
+                            </small>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    renderActivityFeed(data) {
+        if (!this.activityFeed) return;
+        
+        const feed = data.feed || [];
+        
+        if (feed.length === 0) {
+            this.activityFeed.innerHTML = `
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p>No recent activity</p>
+                </div>
+            `;
+            return;
+        }
+        
+        this.activityFeed.innerHTML = `
+            <div class="feed-summary mb-3">
+                <h6><i class="fas fa-stream"></i> Recent Activity</h6>
+            </div>
+            <div class="feed-list">
+                ${feed.map(item => `
+                    <div class="feed-item">
+                        <div class="feed-icon feed-${item.severity}">
+                            <i class="fas fa-${this.getActivityIcon(item.activity_type)}"></i>
+                        </div>
+                        <div class="feed-content">
+                            <div class="feed-summary">${this.escapeHtml(item.activity_summary)}</div>
+                            <div class="feed-details">
+                                <small class="text-muted">
+                                    ${item.user_email ? this.escapeHtml(item.user_email) : 'Unknown user'} 
+                                    • ${item.time_ago}
+                                    ${item.admin_email ? ` • by ${this.escapeHtml(item.admin_email)}` : ''}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    getActivityIcon(activityType) {
+        const icons = {
+            'user_view': 'eye',
+            'user_search': 'search',
+            'user_status_update': 'user-edit',
+            'password_reset': 'key',
+            'login': 'sign-in-alt',
+            'logout': 'sign-out-alt',
+            'page_view': 'file-alt',
+            'form_submit': 'paper-plane',
+            'api_call': 'code'
+        };
+        return icons[activityType] || 'circle';
+    }
+    
+    updateEnvironmentInfo(environment) {
+        const envInfo = document.getElementById('analytics-env-info');
+        if (envInfo && environment) {
+            envInfo.innerHTML = `
+                <i class="fas fa-server"></i> 
+                ${this.escapeHtml(environment.display_name)} 
+                <span class="badge bg-${environment.env_type === 'production' ? 'danger' : 'secondary'} ms-2">
+                    ${environment.env_type}
+                </span>
+            `;
+        }
+    }
+    
+    updateLastRefreshTime() {
+        if (this.lastUpdateTime) {
+            this.lastUpdateTime.textContent = new Date().toLocaleTimeString('en-US', {
+                timeZone: 'America/Sao_Paulo',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+    }
+    
+    startAutoRefresh() {
+        // Refresh every 30 seconds when visible
+        this.refreshInterval = setInterval(() => {
+            if (this.isVisible() && this.currentEnvironmentId) {
+                this.loadAnalytics();
+            }
+        }, 30000);
+    }
+    
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+    }
+    
+    showLoading() {
+        const loading = document.getElementById('analytics-loading');
+        const content = document.getElementById('analytics-content');
+        loading?.classList.remove('d-none');
+        content?.classList.add('d-none');
+    }
+    
+    hideLoading() {
+        const loading = document.getElementById('analytics-loading');
+        const content = document.getElementById('analytics-content');
+        loading?.classList.add('d-none');
+        content?.classList.remove('d-none');
+    }
+    
+    showError(message) {
+        const error = document.getElementById('analytics-error');
+        const errorMessage = document.getElementById('analytics-error-message');
+        
+        if (error && errorMessage) {
+            errorMessage.textContent = message;
+            error.classList.remove('d-none');
+            this.hideLoading();
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+    
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Public API methods
+    refresh() {
+        if (this.isVisible()) {
+            this.loadAnalytics();
+        }
+    }
+    
+    setEnvironment(environmentId) {
+        this.currentEnvironmentId = environmentId;
+        if (this.isVisible()) {
+            this.loadAnalytics();
+        }
+    }
+}
+
+// Create global instance
+const userAnalytics = new UserAnalytics();

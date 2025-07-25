@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const moment = require('moment');
+const { query, validationResult } = require('express-validator');
 const Customer = require('../models/Customer');
 const CustomerSubscription = require('../models/CustomerSubscription');
 const CustomerMetrics = require('../models/CustomerMetrics');
@@ -726,5 +727,9 @@ router.get('/customers/cohorts', async (req, res) => {
         });
     }
 });
+
+// ===== ANALYTICS ENDPOINTS REMOVED - BROKEN IMPLEMENTATION =====
+// All user activity monitoring endpoints have been removed due to implementation issues
+// Future implementation should be done by a different agent
 
 module.exports = router;

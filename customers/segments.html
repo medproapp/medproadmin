@@ -23,6 +23,29 @@
                     <h1 class="admin-logo">MedPro Admin</h1>
                 </div>
                 <div class="col-md-6 text-end">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display d-inline-block me-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <span class="admin-user">
                         <i class="fas fa-user-circle"></i>
                         <span id="admin-email"></span>
@@ -76,6 +99,17 @@
                     <li>
                         <a href="/medproadmin/customers/segments.html" class="active">
                             <i class="fas fa-layer-group"></i> Customer Segments
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li>
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/users/" id="user-management-nav" style="display: none;">
+                            <i class="fas fa-users-cog"></i> User Management
                         </a>
                     </li>
                     <li class="nav-section">System</li>
@@ -296,12 +330,66 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../shared/js/adminAuth.js"></script>
     <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
     <script src="./js/services/segmentApi.js"></script>
     <script src="./js/components/segmentList.js"></script>
     <script src="./js/components/segmentModal.js"></script>
     <script src="./js/segments.js"></script>
     
     <script>
+        // Initialize environment context
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize environment context
+            if (window.environmentContext) {
+                try {
+                    await window.environmentContext.init();
+                    updateEnvironmentDisplay();
+                    
+                    // Listen for environment changes
+                    window.environmentContext.addEventListener((event, data) => {
+                        if (event === 'environmentChanged') {
+                            updateEnvironmentDisplay();
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Failed to initialize environment context:', error);
+                }
+            }
+        });
+        
+        // Update environment display in header
+        function updateEnvironmentDisplay() {
+            const medproEnvDisplay = document.getElementById('medpro-env-display');
+            const medproEnvName = document.getElementById('medpro-env-name');
+            
+            if (!medproEnvDisplay || !medproEnvName) return;
+            
+            const currentEnv = window.environmentContext?.getCurrentEnvironment();
+            
+            if (currentEnv) {
+                medproEnvName.textContent = currentEnv.display_name;
+                
+                // Update badge style based on environment type
+                medproEnvDisplay.className = `environment-badge medpro-env ${currentEnv.env_type}`;
+                
+                // Update user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'block';
+                    userManagementNav.href = `/medproadmin/users/?env=${currentEnv.id}`;
+                }
+            } else {
+                medproEnvName.textContent = 'No Environment';
+                medproEnvDisplay.className = 'environment-badge medpro-env';
+                
+                // Hide user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'none';
+                }
+            }
+        }
+        
         function logout() {
             localStorage.removeItem('adminToken');
             window.location.href = '/login';

@@ -1,0 +1,326 @@
+/* Monitor Page Styles */
+
+/* Header */
+.back-btn {
+    color: #6c757d;
+    text-decoration: none;
+    padding: 0.375rem 0.75rem;
+}
+
+.back-btn:hover {
+    color: #495057;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.environment-indicator {
+    padding: 0.25rem 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    border: 1px solid #dee2e6;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Health Cards */
+.card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Health Metrics */
+.health-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.health-metric:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.health-metric-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.health-metric-value {
+    font-weight: 600;
+}
+
+.health-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.health-status.online {
+    background-color: #d1edff;
+    color: #0c63e4;
+}
+
+.health-status.offline {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+.health-status.warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.health-status.healthy {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.health-status.critical {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Resource Usage */
+.resource-usage {
+    margin-bottom: 1rem;
+}
+
+.resource-label {
+    display: flex;
+    justify-content: between;
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.progress {
+    height: 0.5rem;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Log Container */
+.log-container {
+    height: 500px;
+    overflow-y: auto;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.log-controls {
+    display: flex;
+    align-items: center;
+}
+
+.log-entry {
+    padding: 0.25rem 1rem;
+    border-bottom: 1px solid #2d2d2d;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-entry:hover {
+    background-color: #2d2d2d;
+}
+
+.log-entry.error {
+    background-color: #2d1b1b;
+    border-left: 3px solid #dc3545;
+}
+
+.log-entry.warn {
+    background-color: #2d2419;
+    border-left: 3px solid #ffc107;
+}
+
+.log-entry.info {
+    background-color: #1b2d2d;
+    border-left: 3px solid #17a2b8;
+}
+
+.log-entry.debug {
+    background-color: #1e1e2d;
+    border-left: 3px solid #6c757d;
+}
+
+.log-timestamp {
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.log-level {
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+
+.log-level.error {
+    background-color: #dc3545;
+    color: white;
+}
+
+.log-level.warn {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.log-level.info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.log-level.debug {
+    background-color: #6c757d;
+    color: white;
+}
+
+.log-message {
+    margin-left: 0.5rem;
+}
+
+/* Auto Refresh Indicator */
+.auto-refresh-active {
+    color: #28a745 !important;
+}
+
+.auto-refresh-active i {
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Loading States */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+/* Alert Styles */
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+    
+    .log-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    
+    .log-container {
+        height: 400px;
+    }
+}
+
+/* Scrollbar Styling for Log Container */
+.log-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: #2d2d2d;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+/* Animation for refresh buttons */
+.btn i.fa-sync {
+    transition: transform 0.3s ease;
+}
+
+.btn.refreshing i.fa-sync {
+    animation: spin 1s linear infinite;
+}
+
+/* Metric value colors */
+.metric-value.good {
+    color: #28a745;
+}
+
+.metric-value.warning {
+    color: #ffc107;
+}
+
+.metric-value.critical {
+    color: #dc3545;
+}
+
+/* Connection status indicators */
+.connection-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.connection-indicator.connected {
+    background-color: #28a745;
+    box-shadow: 0 0 6px rgba(40, 167, 69, 0.5);
+}
+
+.connection-indicator.disconnected {
+    background-color: #dc3545;
+    box-shadow: 0 0 6px rgba(220, 53, 69, 0.5);
+}
+
+.connection-indicator.warning {
+    background-color: #ffc107;
+    box-shadow: 0 0 6px rgba(255, 193, 7, 0.5);
+}
