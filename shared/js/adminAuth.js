@@ -68,7 +68,7 @@ class AdminAuth {
     // Logout
     logout() {
         this.removeToken();
-        window.location.href = '/login';
+        window.location.href = '/medproadmin/login.html';
     }
     
     // Get stored token
@@ -115,7 +115,7 @@ class AdminAuth {
             // Handle 401 Unauthorized
             if (response.status === 401) {
                 this.removeToken();
-                window.location.href = '/login';
+                window.location.href = '/medproadmin/login.html';
                 throw new Error('Unauthorized');
             }
             
@@ -150,7 +150,7 @@ const adminAuth = new AdminAuth();
 async function checkAdminAuth() {
     const user = await adminAuth.checkAuth();
     if (!user) {
-        window.location.href = '/login';
+        window.location.href = '/medproadmin/login.html';
         return null;
     }
     return user;

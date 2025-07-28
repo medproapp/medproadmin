@@ -4,35 +4,62 @@
 let toastContainer;
 
 function showToast(message, type = 'info', duration = 3000) {
+    console.log('🍞 showToast called:', { message, type, duration });
+    
     // Create toast container if it doesn't exist
     if (!toastContainer) {
         toastContainer = document.createElement('div');
         toastContainer.className = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            z-index: 99999 !important;
+            max-width: 400px !important;
+        `;
         document.body.appendChild(toastContainer);
+        console.log('📦 Created new toast container with inline styles');
     }
     
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    toast.style.cssText = `
+        margin-bottom: 10px !important;
+        padding: 12px 16px !important;
+        border-radius: 6px !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        animation: slideIn 0.3s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        min-width: 250px !important;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'} !important;
+        ${type === 'warning' ? 'color: #212529 !important;' : ''}
+    `;
     toast.innerHTML = `
-        <div class="toast-content">
-            <i class="fas fa-${getToastIcon(type)}"></i>
+        <div class="toast-content" style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-${getToastIcon(type)}" style="font-size: 16px;"></i>
             <span>${message}</span>
         </div>
     `;
+    console.log('🎨 Created toast element with inline styles:', toast);
     
     // Add to container
     toastContainer.appendChild(toast);
+    console.log('✅ Toast element added to container');
     
     // Remove after duration
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
             toast.remove();
+            console.log('🗑️ Toast element removed');
             // Remove container if empty
             if (toastContainer.children.length === 0) {
                 toastContainer.remove();
                 toastContainer = null;
+                console.log('🗑️ Toast container removed');
             }
         }, 300);
     }, duration);
@@ -295,7 +322,7 @@ window.adminUtils = {
     copyToClipboard
 };
 
-// Add loading overlay styles
+// Add loading overlay and toast styles
 const style = document.createElement('style');
 style.textContent = `
     .loading-overlay {
@@ -321,6 +348,64 @@ style.textContent = `
     .loading-message {
         margin-top: 1rem;
         margin-bottom: 0;
+    }
+    
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        max-width: 400px;
+    }
+    
+    .toast {
+        margin-bottom: 10px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        display: flex;
+        align-items: center;
+        min-width: 250px;
+    }
+    
+    .toast.success {
+        background: #28a745;
+    }
+    
+    .toast.error {
+        background: #dc3545;
+    }
+    
+    .toast.warning {
+        background: #ffc107;
+        color: #212529;
+    }
+    
+    .toast.info {
+        background: #17a2b8;
+    }
+    
+    .toast-content {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .toast-content i {
+        font-size: 16px;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
     
     @keyframes slideOut {

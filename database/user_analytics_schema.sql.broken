@@ -1,0 +1,253 @@
+-- User Analytics and Session Management Schema
+-- This extends the existing admin database with activity monitoring and analytics
+
+-- User Activity Log (tracks all user actions across environments)
+CREATE TABLE IF NOT EXISTS user_activity_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    environment_id INT NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NULL,
+    session_id VARCHAR(255) NULL,
+    activity_type ENUM(
+        'login', 'logout', 'page_view', 'form_submit', 'api_call', 
+        'file_upload', 'file_download', 'search', 'export', 
+        'settings_change', 'password_change', 'profile_update',
+        'appointment_create', 'appointment_update', 'appointment_cancel',
+        'patient_create', 'patient_update', 'patient_view',
+        'payment_process', 'report_generate', 'email_send'
+    ) NOT NULL,
+    activity_details JSON NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    referer_url TEXT NULL,
+    request_url TEXT NULL,
+    response_status INT NULL,
+    response_time_ms INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_environment_user (environment_id, user_email),
+    INDEX idx_session (session_id),
+    INDEX idx_activity_type (activity_type),
+    INDEX idx_created_at (created_at),
+    INDEX idx_environment_date (environment_id, created_at),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- User Sessions (tracks active user sessions)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    environment_id INT NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NULL,
+    user_role ENUM('pract', 'patient', 'assist') NULL,
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    logout_time TIMESTAMP NULL,
+    session_duration_seconds INT GENERATED ALWAYS AS (
+        CASE 
+            WHEN logout_time IS NOT NULL THEN TIMESTAMPDIFF(SECOND, login_time, logout_time)
+            ELSE TIMESTAMPDIFF(SECOND, login_time, last_activity)
+        END
+    ) STORED,
+    is_active BOOLEAN GENERATED ALWAYS AS (logout_time IS NULL) STORED,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    location_country VARCHAR(100) NULL,
+    location_city VARCHAR(100) NULL,
+    device_type ENUM('desktop', 'mobile', 'tablet', 'unknown') DEFAULT 'unknown',
+    browser_name VARCHAR(100) NULL,
+    browser_version VARCHAR(50) NULL,
+    os_name VARCHAR(100) NULL,
+    os_version VARCHAR(50) NULL,
+    
+    INDEX idx_session_id (session_id),
+    INDEX idx_environment_user (environment_id, user_email),
+    INDEX idx_active_sessions (is_active, last_activity),
+    INDEX idx_login_time (login_time),
+    INDEX idx_environment_active (environment_id, is_active),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- User Analytics Daily (aggregated daily metrics per user)
+CREATE TABLE IF NOT EXISTS user_analytics_daily (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    date DATE NOT NULL,
+    environment_id INT NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    user_role ENUM('pract', 'patient', 'assist') NULL,
+    
+    -- Session metrics
+    total_sessions INT DEFAULT 0,
+    total_session_time_seconds INT DEFAULT 0,
+    avg_session_duration_seconds DECIMAL(10,2) DEFAULT 0,
+    longest_session_seconds INT DEFAULT 0,
+    
+    -- Activity metrics
+    total_activities INT DEFAULT 0,
+    login_count INT DEFAULT 0,
+    page_views INT DEFAULT 0,
+    form_submissions INT DEFAULT 0,
+    api_calls INT DEFAULT 0,
+    searches INT DEFAULT 0,
+    exports INT DEFAULT 0,
+    
+    -- Business metrics (if applicable)
+    appointments_created INT DEFAULT 0,
+    appointments_updated INT DEFAULT 0,
+    patients_viewed INT DEFAULT 0,
+    payments_processed INT DEFAULT 0,
+    reports_generated INT DEFAULT 0,
+    emails_sent INT DEFAULT 0,
+    
+    -- Technical metrics
+    avg_response_time_ms DECIMAL(10,2) DEFAULT 0,
+    error_count INT DEFAULT 0,
+    unique_ips INT DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY unique_date_env_user (date, environment_id, user_email),
+    INDEX idx_date (date),
+    INDEX idx_environment_date (environment_id, date),
+    INDEX idx_user_date (user_email, date),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- Environment Analytics Daily (aggregated daily metrics per environment)
+CREATE TABLE IF NOT EXISTS environment_analytics_daily (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    date DATE NOT NULL,
+    environment_id INT NOT NULL,
+    
+    -- User metrics
+    total_active_users INT DEFAULT 0,
+    new_users INT DEFAULT 0,
+    returning_users INT DEFAULT 0,
+    total_practitioners INT DEFAULT 0,
+    total_patients INT DEFAULT 0,
+    total_assistants INT DEFAULT 0,
+    
+    -- Session metrics
+    total_sessions INT DEFAULT 0,
+    avg_session_duration_seconds DECIMAL(10,2) DEFAULT 0,
+    total_session_time_hours DECIMAL(10,2) DEFAULT 0,
+    concurrent_peak_users INT DEFAULT 0,
+    
+    -- Activity metrics
+    total_activities INT DEFAULT 0,
+    total_logins INT DEFAULT 0,
+    total_page_views INT DEFAULT 0,
+    total_api_calls INT DEFAULT 0,
+    
+    -- Performance metrics
+    avg_response_time_ms DECIMAL(10,2) DEFAULT 0,
+    error_rate DECIMAL(5,2) DEFAULT 0,
+    uptime_percentage DECIMAL(5,2) DEFAULT 100.00,
+    
+    -- Business metrics
+    total_appointments INT DEFAULT 0,
+    total_payments DECIMAL(12,2) DEFAULT 0,
+    total_reports INT DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY unique_date_env (date, environment_id),
+    INDEX idx_date (date),
+    INDEX idx_environment (environment_id),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- Real-time Activity Feed (for live monitoring - auto-purged)
+CREATE TABLE IF NOT EXISTS realtime_activity_feed (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    environment_id INT NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    activity_type VARCHAR(50) NOT NULL,
+    activity_summary VARCHAR(500) NOT NULL,
+    severity ENUM('info', 'warning', 'error', 'success') DEFAULT 'info',
+    metadata JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP GENERATED ALWAYS AS (DATE_ADD(created_at, INTERVAL 24 HOUR)) STORED,
+    
+    INDEX idx_environment_created (environment_id, created_at),
+    INDEX idx_expires (expires_at),
+    INDEX idx_severity (severity),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- User Behavior Patterns (ML-ready analytics)
+CREATE TABLE IF NOT EXISTS user_behavior_patterns (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    environment_id INT NOT NULL,
+    analysis_date DATE NOT NULL,
+    
+    -- Usage patterns
+    peak_activity_hour INT NULL, -- 0-23
+    avg_session_length_minutes DECIMAL(10,2) DEFAULT 0,
+    most_used_features JSON NULL,
+    activity_consistency_score DECIMAL(3,2) DEFAULT 0, -- 0-1
+    
+    -- Engagement metrics
+    days_active_last_30 INT DEFAULT 0,
+    sessions_per_day DECIMAL(5,2) DEFAULT 0,
+    feature_adoption_rate DECIMAL(3,2) DEFAULT 0,
+    help_usage_frequency DECIMAL(5,2) DEFAULT 0,
+    
+    -- Risk indicators
+    unusual_activity_score DECIMAL(3,2) DEFAULT 0, -- 0-1 (higher = more unusual)
+    security_events_count INT DEFAULT 0,
+    failed_login_attempts INT DEFAULT 0,
+    
+    -- Predictive metrics
+    churn_risk_score DECIMAL(3,2) DEFAULT 0, -- 0-1
+    engagement_trend ENUM('increasing', 'stable', 'decreasing', 'inactive') DEFAULT 'stable',
+    predicted_next_login TIMESTAMP NULL,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY unique_user_env_date (user_email, environment_id, analysis_date),
+    INDEX idx_user_env (user_email, environment_id),
+    INDEX idx_analysis_date (analysis_date),
+    INDEX idx_churn_risk (churn_risk_score),
+    INDEX idx_engagement_trend (engagement_trend),
+    
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+
+-- Triggers for real-time activity cleanup (auto-purge old data)
+DELIMITER //
+CREATE EVENT IF NOT EXISTS cleanup_realtime_activity
+ON SCHEDULE EVERY 1 HOUR
+DO
+BEGIN
+    DELETE FROM realtime_activity_feed 
+    WHERE expires_at < NOW();
+END //
+
+CREATE EVENT IF NOT EXISTS cleanup_old_activity_logs
+ON SCHEDULE EVERY 1 DAY
+DO
+BEGIN
+    -- Keep detailed logs for 90 days, summary for 1 year
+    DELETE FROM user_activity_log 
+    WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY);
+    
+    -- Keep session data for 1 year
+    DELETE FROM user_sessions 
+    WHERE login_time < DATE_SUB(NOW(), INTERVAL 365 DAY);
+END //
+DELIMITER ;
+
+-- Add indexes for performance optimization
+ALTER TABLE env_access_log ADD INDEX idx_environment_action (environment_id, action_type, created_at);
+ALTER TABLE env_access_log ADD INDEX idx_user_action (admin_email, action_type, created_at);
