@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Jobs - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link rel="stylesheet" href="./css/migration.css">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 d-flex justify-content-center">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li class="nav-section">Migration Management</li>
+                    <li>
+                        <a href="/medproadmin/migration/">
+                            <i class="fas fa-exchange-alt"></i> Migration Sources
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/migration/jobs.html" class="active">
+                            <i class="fas fa-tasks"></i> Migration Jobs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/migration/executions.html">
+                            <i class="fas fa-play"></i> Executions
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li>
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/users/" id="user-management-nav" style="display: none;">
+                            <i class="fas fa-users-cog"></i> User Management
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <div class="content-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1>Migration Jobs</h1>
+                    <button class="btn btn-primary" id="create-job-btn">
+                        <i class="fas fa-plus"></i> Create Job
+                    </button>
+                </div>
+            </div>
+
+            <div class="content-body">
+                <!-- Loading State -->
+                <div id="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading migration jobs...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="error" class="alert alert-danger" style="display: none;"></div>
+
+                <!-- Jobs Table -->
+                <div id="jobs-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Job Name</th>
+                                            <th>Source</th>
+                                            <th>Description</th>
+                                            <th>Parameters</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobs-tbody">
+                                        <!-- Jobs will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Job Modal -->
+    <div id="create-job-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Migration Job</h3>
+                <button class="modal-close" id="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-job-form">
+                    <div class="form-group">
+                        <label class="form-label" for="job-source">Migration Source *</label>
+                        <select id="job-source" class="form-control" required>
+                            <option value="">Select a migration source...</option>
+                        </select>
+                        <small class="text-muted">Choose the source system to migrate from</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="job-name">Job Name *</label>
+                        <input type="text" id="job-name" class="form-control" required 
+                               placeholder="e.g., Main Hospital Epic Import">
+                        <small class="text-muted">Descriptive name for this job instance</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="job-description">Description</label>
+                        <textarea id="job-description" class="form-control" rows="3" 
+                                  placeholder="Describe what this job will do..."></textarea>
+                    </div>
+                    
+                    <div id="parameters-section" style="display: none;">
+                        <label class="form-label">Parameters</label>
+                        <div id="parameters-container">
+                            <!-- Dynamic parameters will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-secondary" id="cancel-create-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Job</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Execute Job Modal -->
+    <div id="execute-job-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Execute Migration Job</h3>
+                <button class="modal-close" id="close-execute-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="execute-job-form">
+                    <div class="form-group">
+                        <label class="form-label" for="execution-environment">Target Environment *</label>
+                        <select id="execution-environment" class="form-control" required>
+                            <option value="">Select target environment...</option>
+                            <option value="development">Development</option>
+                            <option value="staging">Staging</option>
+                            <option value="production">Production</option>
+                        </select>
+                        <small class="text-muted">Choose the MedPro environment to run this job on</small>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will execute the migration script on the selected environment. Make sure you have the correct environment selected.
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-secondary" id="cancel-execute-btn">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Execute Job</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
+    <script src="../shared/js/environmentSelector.js"></script>
+    <script src="./js/services/migrationApi.js"></script>
+    <script src="./js/jobs.js"></script>
+    
+    <script>
+        // Initialize environment context
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize environment context
+            if (window.environmentContext) {
+                try {
+                    await window.environmentContext.init();
+                    updateEnvironmentDisplay();
+                    
+                    // Listen for environment changes
+                    window.environmentContext.addEventListener((event, data) => {
+                        if (event === 'environmentChanged') {
+                            updateEnvironmentDisplay();
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Failed to initialize environment context:', error);
+                }
+            }
+        });
+        
+        // Update environment display in header
+        function updateEnvironmentDisplay() {
+            const medproEnvDisplay = document.getElementById('medpro-env-display');
+            const medproEnvName = document.getElementById('medpro-env-name');
+            
+            if (!medproEnvDisplay || !medproEnvName) return;
+            
+            const currentEnv = window.environmentContext?.getCurrentEnvironment();
+            
+            if (currentEnv) {
+                medproEnvName.textContent = currentEnv.display_name;
+                
+                // Update badge style based on environment type
+                medproEnvDisplay.className = `environment-badge medpro-env ${currentEnv.env_type}`;
+                
+                // Update user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'block';
+                    userManagementNav.href = `/medproadmin/users/?env=${currentEnv.id}`;
+                }
+            } else {
+                medproEnvName.textContent = 'No Environment';
+                medproEnvDisplay.className = 'environment-badge medpro-env';
+                
+                // Hide user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'none';
+                }
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>

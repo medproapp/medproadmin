@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Executions - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link rel="stylesheet" href="./css/migration.css">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 d-flex justify-content-center">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <nav class="admin-nav">
+                <ul>
+                    <li>
+                        <a href="/medproadmin/">
+                            <i class="fas fa-dashboard"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-section">Products</li>
+                    <li>
+                        <a href="/medproadmin/product-catalog/">
+                            <i class="fas fa-box"></i> Product Catalog
+                        </a>
+                    </li>
+                    <li class="nav-section">Customers</li>
+                    <li>
+                        <a href="/medproadmin/customers/">
+                            <i class="fas fa-users"></i> Customer Management
+                        </a>
+                    </li>
+                    <li class="nav-section">Migration Management</li>
+                    <li>
+                        <a href="/medproadmin/migration/">
+                            <i class="fas fa-exchange-alt"></i> Migration Sources
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/migration/jobs.html">
+                            <i class="fas fa-tasks"></i> Migration Jobs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/migration/executions.html" class="active">
+                            <i class="fas fa-play"></i> Executions
+                        </a>
+                    </li>
+                    <li class="nav-section">Environment Management</li>
+                    <li>
+                        <a href="/medproadmin/environments/">
+                            <i class="fas fa-server"></i> Environments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/users/" id="user-management-nav" style="display: none;">
+                            <i class="fas fa-users-cog"></i> User Management
+                        </a>
+                    </li>
+                    <li class="nav-section">System</li>
+                    <li>
+                        <a href="/medproadmin/audit-log/">
+                            <i class="fas fa-history"></i> Audit Log
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medproadmin/settings/">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            <div class="content-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1>Migration Executions</h1>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" id="refresh-btn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" onclick="window.location.href='/medproadmin/migration/jobs.html'">
+                            <i class="fas fa-play"></i> Execute New Job
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-body">
+                <!-- Filters -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label">Filter by Status</label>
+                                <select id="status-filter" class="form-control">
+                                    <option value="">All Status</option>
+                                    <option value="running">Running</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="failed">Failed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Filter by Environment</label>
+                                <select id="environment-filter" class="form-control">
+                                    <option value="">All Environments</option>
+                                    <option value="development">Development</option>
+                                    <option value="staging">Staging</option>
+                                    <option value="production">Production</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary" id="apply-filters-btn">
+                                    <i class="fas fa-filter"></i> Apply Filters
+                                </button>
+                                <button class="btn btn-outline-secondary" id="clear-filters-btn">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading migration executions...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="error" class="alert alert-danger" style="display: none;"></div>
+
+                <!-- Executions Table -->
+                <div id="executions-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Job</th>
+                                            <th>Source</th>
+                                            <th>Environment</th>
+                                            <th>Status</th>
+                                            <th>Progress</th>
+                                            <th>Started</th>
+                                            <th>Duration</th>
+                                            <th>Executed By</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="executions-tbody">
+                                        <!-- Executions will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Execution Details Modal -->
+    <div id="execution-details-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Execution Details</h3>
+                <button class="modal-close" id="close-details-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="execution-details-content">
+                    <!-- Details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Modal -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Execution Logs</h3>
+                <button class="modal-close" id="close-logs-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Real-time logs</span>
+                    <button class="btn btn-sm btn-outline-primary" id="refresh-logs-btn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div id="logs-container" class="logs-container">
+                    <!-- Logs will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/environmentContext.js"></script>
+    <script src="../shared/js/environmentSelector.js"></script>
+    <script src="./js/services/migrationApi.js"></script>
+    <script src="./js/executions.js"></script>
+    
+    <script>
+        // Initialize environment context
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize environment context
+            if (window.environmentContext) {
+                try {
+                    await window.environmentContext.init();
+                    updateEnvironmentDisplay();
+                    
+                    // Listen for environment changes
+                    window.environmentContext.addEventListener((event, data) => {
+                        if (event === 'environmentChanged') {
+                            updateEnvironmentDisplay();
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Failed to initialize environment context:', error);
+                }
+            }
+        });
+        
+        // Update environment display in header
+        function updateEnvironmentDisplay() {
+            const medproEnvDisplay = document.getElementById('medpro-env-display');
+            const medproEnvName = document.getElementById('medpro-env-name');
+            
+            if (!medproEnvDisplay || !medproEnvName) return;
+            
+            const currentEnv = window.environmentContext?.getCurrentEnvironment();
+            
+            if (currentEnv) {
+                medproEnvName.textContent = currentEnv.display_name;
+                
+                // Update badge style based on environment type
+                medproEnvDisplay.className = `environment-badge medpro-env ${currentEnv.env_type}`;
+                
+                // Update user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'block';
+                    userManagementNav.href = `/medproadmin/users/?env=${currentEnv.id}`;
+                }
+            } else {
+                medproEnvName.textContent = 'No Environment';
+                medproEnvDisplay.className = 'environment-badge medpro-env';
+                
+                // Hide user management nav
+                const userManagementNav = document.getElementById('user-management-nav');
+                if (userManagementNav) {
+                    userManagementNav.style.display = 'none';
+                }
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>

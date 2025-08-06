@@ -88,6 +88,9 @@ app.use('/api/v1/churn', require('./routes/churn'));
 app.use('/api/v1/analytics', require('./routes/analytics'));
 app.use('/api/v1/environments', require('./routes/environments'));
 app.use('/api/v1/users', require('./routes/users'));
+app.use('/api/v1/migration-sources', require('./routes/migrationSources'));
+app.use('/api/v1/migration-jobs', require('./routes/migrationJobs'));
+app.use('/api/v1/migration-executions', require('./routes/migrationExecutions'));
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
