@@ -1,0 +1,206 @@
+<!-- Enhanced Navigation Component Template -->
+<aside class="admin-sidebar" id="admin-sidebar">
+    <nav class="admin-nav">
+        <!-- Mobile Toggle Button -->
+        <div class="nav-mobile-header d-lg-none">
+            <button class="btn btn-link nav-toggle" id="nav-toggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <ul class="nav-list" id="nav-list">
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a href="/medproadmin/" class="nav-link" data-page="dashboard">
+                    <i class="fas fa-dashboard nav-icon"></i> 
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </li>
+            
+            <!-- Products Section -->
+            <li class="nav-section-header" data-section="products">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">Products</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="products">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/product-catalog/" class="nav-link" data-page="product-catalog">
+                            <i class="fas fa-box nav-icon"></i>
+                            <span class="nav-text">Product Catalog</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/product-catalog/recovery.html" class="nav-link" data-page="v3-recovery">
+                            <i class="fas fa-tools nav-icon"></i>
+                            <span class="nav-text">V3 Recovery</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/product-catalog/templates.html" class="nav-link" data-page="templates">
+                            <i class="fas fa-file-alt nav-icon"></i>
+                            <span class="nav-text">Templates</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Customers Section -->
+            <li class="nav-section-header" data-section="customers">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">Customers</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="customers">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/customers/" class="nav-link" data-page="customer-management">
+                            <i class="fas fa-users nav-icon"></i>
+                            <span class="nav-text">Customer Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/customers/analytics.html" class="nav-link" data-page="customer-analytics">
+                            <i class="fas fa-chart-bar nav-icon"></i>
+                            <span class="nav-text">Customer Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/customers/segments.html" class="nav-link" data-page="customer-segments">
+                            <i class="fas fa-layer-group nav-icon"></i>
+                            <span class="nav-text">Customer Segments</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Migration Management Section -->
+            <li class="nav-section-header" data-section="migration">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">Migration Management</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="migration">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/migration/" class="nav-link" data-page="migration-sources">
+                            <i class="fas fa-exchange-alt nav-icon"></i>
+                            <span class="nav-text">Migration Sources</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/migration/jobs.html" class="nav-link" data-page="migration-jobs">
+                            <i class="fas fa-tasks nav-icon"></i>
+                            <span class="nav-text">Migration Jobs</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/migration/executions.html" class="nav-link" data-page="migration-executions">
+                            <i class="fas fa-play nav-icon"></i>
+                            <span class="nav-text">Executions</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Environment Management Section -->
+            <li class="nav-section-header" data-section="environment">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">Environment Management</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="environment">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/environments/" class="nav-link" data-page="environments">
+                            <i class="fas fa-server nav-icon"></i>
+                            <span class="nav-text">Environments</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/database-management/" class="nav-link" data-page="database-management">
+                            <i class="fas fa-database nav-icon"></i>
+                            <span class="nav-text">Database Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem" id="user-management-nav-item" style="display: none;">
+                        <a href="/medproadmin/users/" class="nav-link" data-page="user-management" id="user-management-nav-link">
+                            <i class="fas fa-users-cog nav-icon"></i>
+                            <span class="nav-text">User Management</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- Content Management Section -->
+            <li class="nav-section-header" data-section="content">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">Content Management</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="content">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/news/" class="nav-link" data-page="news-management">
+                            <i class="fas fa-newspaper nav-icon"></i>
+                            <span class="nav-text">Platform News</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/news/create.html" class="nav-link" data-page="news-create">
+                            <i class="fas fa-plus nav-icon"></i>
+                            <span class="nav-text">Create Article</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            
+            <!-- System Section -->
+            <li class="nav-section-header" data-section="system">
+                <div class="nav-section-toggle">
+                    <i class="fas fa-chevron-down section-arrow"></i>
+                    <span class="section-title">System</span>
+                </div>
+            </li>
+            <li class="nav-section-content" data-section="system">
+                <ul class="nav-subsection">
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/audit-log/" class="nav-link" data-page="audit-log">
+                            <i class="fas fa-history nav-icon"></i>
+                            <span class="nav-text">Audit Log</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="/medproadmin/settings/" class="nav-link" data-page="settings">
+                            <i class="fas fa-cog nav-icon"></i>
+                            <span class="nav-text">Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+    
+    <!-- Mobile Overlay -->
+    <div class="nav-mobile-overlay d-lg-none" id="nav-mobile-overlay"></div>
+</aside>
+
+<!-- Mobile Navigation Toggle Button -->
+<button class="nav-mobile-toggle d-lg-none" id="nav-mobile-toggle">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- Breadcrumb Container -->
+<div class="breadcrumb-container" id="breadcrumb-container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" id="breadcrumb">
+            <!-- Breadcrumbs will be dynamically generated -->
+        </ol>
+    </nav>
+</div>

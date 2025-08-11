@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Article - News Management - MedPro Admin</title>
+    
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../shared/css/admin-base.css" rel="stylesheet">
+    <link href="../shared/css/navigation.css" rel="stylesheet">
+    <link href="css/news.css" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h1 class="admin-logo">MedPro Admin</h1>
+                </div>
+                <div class="col-md-6 d-flex justify-content-center">
+                    <!-- Environment Context Display -->
+                    <div class="environment-context-display">
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Admin Environment Info -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">Admin DB:</small>
+                                <div class="environment-badge admin-env">
+                                    <i class="fas fa-database"></i>
+                                    <span id="admin-env-name">medpro_admin</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Current MedPro Environment -->
+                            <div class="environment-info">
+                                <small class="text-light opacity-75">MedPro Env:</small>
+                                <div class="environment-badge medpro-env" id="medpro-env-display">
+                                    <i class="fas fa-server"></i>
+                                    <span id="medpro-env-name">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="admin-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="admin-email"></span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-light ms-3" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Navigation will be loaded dynamically -->
+        
+        <!-- Main Content -->
+        <main class="admin-content">
+            <!-- Loading State -->
+            <div id="loading-article" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading article...</span>
+                </div>
+                <p class="mt-2">Loading article data...</p>
+            </div>
+
+            <!-- Article Not Found -->
+            <div id="article-not-found" class="text-center py-5" style="display: none;">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h4>Article Not Found</h4>
+                <p class="text-muted">The requested article could not be found.</p>
+                <a href="index.html" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+
+            <!-- Main Edit Form -->
+            <div id="edit-form-container" style="display: none;">
+                <!-- Page Header -->
+                <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1>
+                            <i class="fas fa-edit text-primary me-2"></i>
+                            Edit Article
+                        </h1>
+                        <p class="text-muted mb-0">Modify the news article</p>
+                    </div>
+                    <div>
+                        <a href="index.html" class="btn btn-secondary me-2">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                        <button type="button" class="btn btn-info me-2" id="preview-btn">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button type="button" class="btn btn-success" id="save-btn">
+                            <i class="fas fa-save"></i> Update Article
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-8">
+                        <!-- Article Form (same structure as create.html) -->
+                        <form id="article-form" novalidate>
+                            <!-- Basic Information -->
+                            <div class="form-section">
+                                <h5><i class="fas fa-edit"></i> Basic Information</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" required maxlength="255">
+                                    <div class="invalid-feedback">Please provide a valid article title.</div>
+                                    <div class="form-text">Maximum 255 characters</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="summary" class="form-label">Summary</label>
+                                    <textarea class="form-control" id="summary" name="summary" rows="3" maxlength="1000"></textarea>
+                                    <div class="form-text">Brief description of the article (max 1000 characters)</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="category" class="form-label">Category</label>
+                                        <input type="text" class="form-control" id="category" name="category" maxlength="100">
+                                        <div class="form-text">e.g., "Features", "Security Updates"</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="type" class="form-label">Type</label>
+                                        <select class="form-select" id="type" name="type">
+                                            <option value="update">Update</option>
+                                            <option value="feature">Feature</option>
+                                            <option value="fix">Fix</option>
+                                            <option value="security">Security</option>
+                                            <option value="maintenance">Maintenance</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Content -->
+                            <div class="form-section">
+                                <h5><i class="fas fa-file-text"></i> Content</h5>
+                                
+                                <div class="mb-3">
+                                    <label for="content" class="form-label">Article Content</label>
+                                    <div class="editor-container">
+                                        <div class="editor-toolbar">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="bold" title="Bold">
+                                                <i class="fas fa-bold"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="italic" title="Italic">
+                                                <i class="fas fa-italic"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="underline" title="Underline">
+                                                <i class="fas fa-underline"></i>
+                                            </button>
+                                            <div class="vr me-2"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="insertUnorderedList" title="Bullet List">
+                                                <i class="fas fa-list-ul"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="insertOrderedList" title="Numbered List">
+                                                <i class="fas fa-list-ol"></i>
+                                            </button>
+                                            <div class="vr me-2"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-command="createLink" title="Insert Link">
+                                                <i class="fas fa-link"></i>
+                                            </button>
+                                        </div>
+                                        <div class="editor-content" id="content-editor" contenteditable="true" style="min-height: 300px;">
+                                            <p>Loading article content...</p>
+                                        </div>
+                                    </div>
+                                    <textarea id="content" name="content" style="display: none;"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Publishing Options -->
+                            <div class="form-section">
+                                <h5><i class="fas fa-globe"></i> Publishing Options</h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="target_audience" class="form-label">Target Audience</label>
+                                        <select class="form-select" id="target_audience" name="target_audience">
+                                            <option value="all">All Users</option>
+                                            <option value="practitioners">Practitioners Only</option>
+                                            <option value="patients">Patients Only</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="publish_date" class="form-label">Publish Date</label>
+                                        <input type="datetime-local" class="form-control" id="publish_date" name="publish_date">
+                                        <div class="form-text">Leave empty to publish immediately</div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <label for="expiry_date" class="form-label">Expiry Date</label>
+                                        <input type="datetime-local" class="form-control" id="expiry_date" name="expiry_date">
+                                        <div class="form-text">When this article should stop being displayed</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check-group mt-4">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="featured" name="featured">
+                                                <label class="form-check-label" for="featured">
+                                                    <i class="fas fa-star text-warning me-1"></i> Featured Article
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="active" name="active">
+                                                <label class="form-check-label" for="active">
+                                                    <i class="fas fa-check-circle text-success me-1"></i> Active (Published)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Links and Media -->
+                            <div class="form-section">
+                                <h5><i class="fas fa-external-link-alt"></i> Links and Media</h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="link_url" class="form-label">External Link URL</label>
+                                        <input type="url" class="form-control" id="link_url" name="link_url" placeholder="https://example.com">
+                                        <div class="invalid-feedback">Please provide a valid URL.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="link_text" class="form-label">Link Text</label>
+                                        <input type="text" class="form-control" id="link_text" name="link_text" maxlength="100" placeholder="Learn More">
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label for="image_url" class="form-label">Featured Image URL</label>
+                                    <div class="input-group">
+                                        <input type="url" class="form-control" id="image_url" name="image_url" placeholder="https://example.com/image.jpg">
+                                        <button class="btn btn-outline-secondary" type="button" id="upload-image-btn">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    </div>
+                                    <input type="file" id="image-file" accept="image/*" style="display: none;">
+                                    <div class="invalid-feedback">Please provide a valid image URL.</div>
+                                </div>
+
+                                <div id="image-preview" class="mt-3" style="display: none;">
+                                    <img id="preview-image" src="" alt="Preview" class="img-thumbnail" style="max-width: 200px;">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <!-- Article Preview -->
+                        <div class="news-preview" id="article-preview">
+                            <h6><i class="fas fa-eye text-primary me-1"></i> Article Preview</h6>
+                            <div class="news-preview-content" id="preview-content">
+                                <p class="text-muted text-center">Loading preview...</p>
+                            </div>
+                        </div>
+
+                        <!-- Publishing Status -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i> Publishing Status</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="publish-status">
+                                    <p><strong>Status:</strong> <span id="status-text">Loading...</span></p>
+                                    <p><strong>Visibility:</strong> <span id="visibility-text">Loading...</span></p>
+                                    <p><strong>Created:</strong> <span id="created-text">Loading...</span></p>
+                                    <p><strong>Modified:</strong> <span id="modified-text">Loading...</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-bolt me-1"></i> Quick Actions</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="save-draft-btn">
+                                        <i class="fas fa-save"></i> Save as Draft
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm" id="publish-now-btn">
+                                        <i class="fas fa-rocket"></i> Publish Now
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" id="schedule-publish-btn">
+                                        <i class="fas fa-clock"></i> Schedule Publishing
+                                    </button>
+                                    <hr>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="delete-article-btn">
+                                        <i class="fas fa-trash"></i> Delete Article
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <!-- Toasts will be inserted here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/js/adminAuth.js"></script>
+    <script src="../shared/js/adminUtils.js"></script>
+    <script src="../shared/js/navigationManager.js"></script>
+    <script src="js/services/newsApi.js"></script>
+    <script src="js/create-edit.js"></script>
+</body>
+</html>
