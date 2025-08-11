@@ -3,6 +3,8 @@
 :root {
     /* MedPro Standard Palette */
     --primary: #0066CC;
+    --primary-light: #4d9fff;
+    --primary-rgb: 0, 102, 204;
     --secondary: #6C757D;
     --success: #28A745;
     --warning: #FFC107;

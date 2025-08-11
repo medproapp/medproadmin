@@ -360,6 +360,7 @@
     <script src="../shared/js/adminAuth.js"></script>
     <script src="../shared/js/adminUtils.js"></script>
     <script src="../shared/js/environmentContext.js"></script>
+    <script src="../shared/js/navigationManager.js"></script>
     <script src="./js/services/customerApi.js"></script>
     <script src="./js/utils/customerUtils.js"></script>
     <script src="./js/components/analyticsCharts.js"></script>
@@ -368,6 +369,9 @@
     <script>
         // Initialize environment context
         document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize navigation first
+            await window.navigationManager.init('customer-analytics');
+            
             // Initialize environment context
             if (window.environmentContext) {
                 try {
@@ -401,21 +405,14 @@
                 // Update badge style based on environment type
                 medproEnvDisplay.className = `environment-badge medpro-env ${currentEnv.env_type}`;
                 
-                // Update user management nav
-                const userManagementNav = document.getElementById('user-management-nav');
-                if (userManagementNav) {
-                    userManagementNav.style.display = 'block';
-                    userManagementNav.href = `/medproadmin/users/?env=${currentEnv.id}`;
-                }
+                // Update user management nav via NavigationManager
+                window.navigationManager.updateUserManagementNav(currentEnv.id);
             } else {
                 medproEnvName.textContent = 'No Environment';
                 medproEnvDisplay.className = 'environment-badge medpro-env';
                 
-                // Hide user management nav
-                const userManagementNav = document.getElementById('user-management-nav');
-                if (userManagementNav) {
-                    userManagementNav.style.display = 'none';
-                }
+                // Hide user management nav via NavigationManager
+                window.navigationManager.updateUserManagementNav();
             }
         }
         

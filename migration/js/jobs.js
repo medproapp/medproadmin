@@ -6,6 +6,8 @@
 let jobs = [];
 let sources = [];
 let currentJobId = null;
+let isEditMode = false;
+let editingJobId = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
@@ -128,6 +130,9 @@ function displayJobs() {
                     <button class="btn btn-outline-secondary btn-sm view-job-btn" data-job-id="${job.id}">
                         <i class="fas fa-eye"></i> View
                     </button>
+                    <button class="btn btn-warning btn-sm duplicate-job-btn" data-job-id="${job.id}">
+                        <i class="fas fa-copy"></i> Duplicate
+                    </button>
                     <button class="btn btn-outline-danger btn-sm delete-job-btn" data-job-id="${job.id}">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -167,7 +172,54 @@ function showToast(message, type = 'success') {
 
 // Modal functions
 function showCreateJobModal() {
+    isEditMode = false;
+    editingJobId = null;
+    document.querySelector('#create-job-modal h3').textContent = 'Create Migration Job';
+    document.querySelector('#create-job-form button[type="submit"]').textContent = 'Create Job';
     document.getElementById('create-job-modal').style.display = 'block';
+}
+
+function showEditJobModal(jobId) {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) {
+        showToast('Job not found', 'error');
+        return;
+    }
+    
+    isEditMode = true;
+    editingJobId = jobId;
+    document.querySelector('#create-job-modal h3').textContent = 'Edit Migration Job';
+    document.querySelector('#create-job-form button[type="submit"]').textContent = 'Update Job';
+    
+    // Show modal first
+    document.getElementById('create-job-modal').style.display = 'block';
+    
+    // Pre-populate form after a short delay
+    setTimeout(() => {
+        // Pre-populate the form with the job data
+        document.getElementById('job-name').value = job.name;
+        document.getElementById('job-description').value = job.description || '';
+        
+        // Set the source (this will trigger parameter loading)
+        const sourceSelect = document.getElementById('job-source');
+        sourceSelect.value = job.source_id;
+        
+        // Trigger source selection to load parameters
+        handleSourceSelection();
+        
+        // Pre-populate parameters after parameters are loaded
+        setTimeout(() => {
+            if (job.parameters && typeof job.parameters === 'object') {
+                const paramInputs = document.querySelectorAll('#parameters-container input');
+                paramInputs.forEach(input => {
+                    const paramName = input.name;
+                    if (job.parameters[paramName] !== undefined) {
+                        input.value = job.parameters[paramName];
+                    }
+                });
+            }
+        }, 200);
+    }, 100);
 }
 
 function closeCreateJobModal() {
@@ -175,10 +227,21 @@ function closeCreateJobModal() {
     document.getElementById('create-job-form').reset();
     document.getElementById('parameters-section').style.display = 'none';
     document.getElementById('parameters-container').innerHTML = '';
+    isEditMode = false;
+    editingJobId = null;
 }
 
 function showExecuteJobModal(jobId) {
     currentJobId = jobId;
+    
+    // Display current environment in modal
+    const currentEnv = window.environmentContext?.getCurrentEnvironment();
+    const envDisplay = document.getElementById('current-env-display');
+    if (envDisplay && currentEnv) {
+        envDisplay.textContent = `${currentEnv.display_name} (${currentEnv.env_type})`;
+        envDisplay.className = `badge bg-${currentEnv.env_type === 'production' ? 'danger' : currentEnv.env_type === 'staging' ? 'warning' : 'info'}`;
+    }
+    
     document.getElementById('execute-job-modal').style.display = 'block';
 }
 
@@ -280,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Table action buttons (delegated)
     document.addEventListener('click', function(e) {
-        const target = e.target.closest('.execute-job-btn, .edit-job-btn, .view-job-btn, .delete-job-btn');
+        const target = e.target.closest('.execute-job-btn, .edit-job-btn, .view-job-btn, .duplicate-job-btn, .delete-job-btn');
         if (target) {
             const jobId = parseInt(target.dataset.jobId);
             if (target.classList.contains('execute-job-btn')) {
@@ -289,6 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 editJob(jobId);
             } else if (target.classList.contains('view-job-btn')) {
                 viewJob(jobId);
+            } else if (target.classList.contains('duplicate-job-btn')) {
+                duplicateJob(jobId);
             } else if (target.classList.contains('delete-job-btn')) {
                 deleteJob(jobId);
             }
@@ -320,24 +385,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                const response = await migrationAPI.createJob({
-                    source_id: parseInt(sourceId),
-                    name,
-                    description,
-                    parameters
-                });
-                
-                if (response.success) {
-                    showToast('Migration job created successfully', 'success');
-                    closeCreateJobModal();
-                    await loadJobs();
+                let response;
+                if (isEditMode) {
+                    // Update existing job
+                    response = await migrationAPI.updateJob(editingJobId, {
+                        name,
+                        description,
+                        parameters
+                    });
+                    
+                    if (response.success) {
+                        showToast('Migration job updated successfully', 'success');
+                        closeCreateJobModal();
+                        await loadJobs();
+                    } else {
+                        throw new Error(response.error);
+                    }
                 } else {
-                    throw new Error(response.error);
+                    // Create new job
+                    response = await migrationAPI.createJob({
+                        source_id: parseInt(sourceId),
+                        name,
+                        description,
+                        parameters
+                    });
+                    
+                    if (response.success) {
+                        showToast('Migration job created successfully', 'success');
+                        closeCreateJobModal();
+                        await loadJobs();
+                    } else {
+                        throw new Error(response.error);
+                    }
                 }
                 
             } catch (error) {
-                console.error('Error creating job:', error);
-                showToast('Failed to create migration job: ' + error.message, 'error');
+                console.error('Error saving job:', error);
+                const action = isEditMode ? 'update' : 'create';
+                showToast(`Failed to ${action} migration job: ` + error.message, 'error');
             }
         });
     }
@@ -379,10 +464,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Placeholder functions for future implementation
+// Duplicate job functionality
+function duplicateJob(id) {
+    const job = jobs.find(j => j.id === id);
+    if (!job) {
+        showToast('Job not found', 'error');
+        return;
+    }
+    
+    try {
+        // Show the create job modal
+        showCreateJobModal();
+        
+        // Wait a moment for modal to be visible and form to be available
+        setTimeout(() => {
+            // Pre-populate the form with the job data
+            document.getElementById('job-name').value = `Copy of ${job.name}`;
+            document.getElementById('job-description').value = job.description || '';
+            
+            // Find the source by matching the source_id from the job
+            const sourceSelect = document.getElementById('job-source');
+            const matchingSource = sources.find(s => s.id == job.source_id);
+            
+            if (matchingSource) {
+                sourceSelect.value = matchingSource.id;
+                
+                // Trigger source selection to load parameters
+                handleSourceSelection();
+                
+                // Pre-populate parameters after parameters are loaded
+                setTimeout(() => {
+                    if (job.parameters && typeof job.parameters === 'object') {
+                        const paramInputs = document.querySelectorAll('#parameters-container input');
+                        paramInputs.forEach(input => {
+                            const paramName = input.name;
+                            if (job.parameters[paramName] !== undefined) {
+                                input.value = job.parameters[paramName];
+                            }
+                        });
+                    }
+                }, 200);
+                
+                showToast(`Duplicating job "${job.name}" - modify as needed and save`, 'info');
+            } else {
+                showToast('Source not found for this job', 'error');
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error duplicating job:', error);
+        showToast('Failed to duplicate job', 'error');
+    }
+}
+
+// Edit job functionality
 function editJob(id) {
-    console.log('Edit job', id, '- to be implemented');
-    showToast('Edit functionality coming soon', 'info');
+    showEditJobModal(id);
 }
 
 function viewJob(id) {

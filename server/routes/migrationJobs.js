@@ -12,7 +12,7 @@ router.get('/', verifyToken, async (req, res) => {
     try {
         const query = `
             SELECT 
-                j.id, j.name, j.description, j.parameters, j.is_active, j.created_at,
+                j.id, j.name, j.description, j.parameters, j.source_id, j.is_active, j.created_at,
                 s.name as source_name, s.display_name as source_display_name
             FROM migration_jobs j
             JOIN migration_sources s ON j.source_id = s.id

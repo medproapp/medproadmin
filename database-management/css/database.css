@@ -1,0 +1,319 @@
+/**
+ * Database Management Page Styles
+ */
+
+/* Section Titles */
+.admin-content .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--admin-text);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--admin-border);
+    flex: none; /* Override navigation flex: 1 */
+}
+
+/* Statistics Section */
+.stats-section {
+    margin-bottom: 2rem;
+}
+
+.dashboard-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+    margin-bottom: 1rem;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-icon.bg-primary { background-color: var(--primary) !important; }
+.card-icon.bg-success { background-color: var(--success) !important; }
+.card-icon.bg-info { background-color: var(--info) !important; }
+.card-icon.bg-warning { background-color: var(--warning) !important; }
+
+/* Procedures Section */
+.procedures-section {
+    margin-top: 2rem;
+}
+
+.procedures-section .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.procedures-section .card-header h3 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+/* Parameter Form */
+#parameter-form {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+#parameters-container {
+    margin-bottom: 1rem;
+}
+
+.parameter-group {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: white;
+    border: 1px solid #e9ecef;
+    border-radius: 0.25rem;
+}
+
+.parameter-group label {
+    font-weight: 500;
+    color: var(--admin-text);
+    margin-bottom: 0.25rem;
+}
+
+.parameter-help {
+    font-size: 0.875rem;
+    color: var(--admin-text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Execution Results */
+#execution-results {
+    margin-top: 2rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+#results-content {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: var(--admin-text);
+}
+
+.results-success {
+    border-left: 4px solid var(--success);
+    background-color: #f8fff8;
+}
+
+.results-error {
+    border-left: 4px solid var(--danger);
+    background-color: #fff8f8;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: relative;
+}
+
+.loading-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-overlay::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 11;
+}
+
+/* Environment Context */
+.target-env-display {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.target-env-display .badge {
+    font-size: 0.875rem;
+}
+
+/* Confirmation Modal */
+#confirmModal .modal-body {
+    padding: 1.5rem;
+}
+
+#confirm-parameters {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+#confirm-parameters .parameter-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+#confirm-parameters .parameter-item:last-child {
+    margin-bottom: 0;
+}
+
+#confirm-parameters .parameter-name {
+    font-weight: 500;
+    color: var(--admin-text);
+}
+
+#confirm-parameters .parameter-value {
+    color: var(--admin-text-muted);
+    font-family: monospace;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stats-section .row {
+        margin-bottom: 0;
+    }
+    
+    .dashboard-card {
+        margin-bottom: 1rem;
+    }
+    
+    .procedures-section .row {
+        margin-bottom: 1rem;
+    }
+    
+    #parameter-form {
+        padding: 1rem;
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Status Badges */
+.status-success {
+    background-color: var(--success);
+    color: white;
+}
+
+.status-error {
+    background-color: var(--danger);
+    color: white;
+}
+
+.status-warning {
+    background-color: var(--warning);
+    color: var(--admin-text);
+}
+
+.status-info {
+    background-color: var(--info);
+    color: white;
+}
+
+/* Confirm Checkbox Styling */
+.parameter-group.confirm-checkbox-wrapper {
+    background-color: #fff5f5;
+    border: 2px solid #fed7d7;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.parameter-group.confirm-checkbox-wrapper .form-check {
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.parameter-group.confirm-checkbox-wrapper .form-check-input {
+    transform: scale(1.2);
+    margin-right: 0.75rem;
+    margin-top: 0;
+}
+
+.parameter-group.confirm-checkbox-wrapper .form-check-input:checked {
+    background-color: var(--danger);
+    border-color: var(--danger);
+}
+
+.parameter-group.confirm-checkbox-wrapper .form-check-label {
+    font-weight: 600;
+    color: var(--danger);
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0;
+}
+
+.parameter-group.confirm-checkbox-wrapper:hover {
+    background-color: #fef5f5;
+    border-color: #fc8b8b;
+}
+
+.parameter-group.confirm-checkbox-wrapper .parameter-help {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Button States */
+#btn-execute:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#btn-execute.executing {
+    position: relative;
+}
+
+#btn-execute.executing::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+}

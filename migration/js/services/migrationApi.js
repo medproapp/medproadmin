@@ -78,14 +78,16 @@ class MigrationAPI {
         return await adminAuth.authenticatedFetch(`${this.baseUrl}/migration-executions/${id}`);
     }
 
-    async getExecutionLogs(id) {
-        return await adminAuth.authenticatedFetch(`${this.baseUrl}/migration-executions/${id}/logs`);
+    async getExecutionLogs(id, limit = 100) {
+        return await adminAuth.authenticatedFetch(`${this.baseUrl}/migration-executions/${id}/logs?limit=${limit}`);
     }
 
     async getExecutions(filters = {}) {
         const params = new URLSearchParams();
         Object.entries(filters).forEach(([key, value]) => {
-            if (value) params.append(key, value);
+            if (value !== undefined && value !== null && value !== '') {
+                params.append(key, value);
+            }
         });
         
         const url = params.toString() ? 
