@@ -199,9 +199,12 @@ class WorkersApp {
         const name = this.escape(rawName);
         const kind = this.processKind(rawName);
         const icon = this.kindIconHtml(kind);
+        const isDev = kind === 'dev-server';
+        const devBadge = isDev ? '<span class="dev-badge">DEV</span>' : '';
+        const rowClass = isDev ? 'dev-server-row' : '';
         return `
-        <tr data-name="${name}">
-            <td class="monospace">${icon}${name}</td>
+        <tr data-name="${name}" class="${rowClass}">
+            <td class="monospace">${icon}${name}${devBadge}</td>
             <td><span class="status-badge ${this.statusClass(status)}">${this.escape(p.status || 'unknown')}</span></td>
             <td>${this.escape(p.namespace || 'default')}</td>
             <td>${this.escape(p.version || '')}</td>
@@ -239,11 +242,13 @@ class WorkersApp {
     processKind(rawName) {
         const n = String(rawName || '').toLowerCase();
         if (n === 'medpro-backend' || n === 'medpro-message-server') return 'server';
+        if (n === 'medpro-frontend-dev') return 'dev-server';
         return 'worker';
     }
 
     kindIconHtml(kind) {
         if (kind === 'server') return '<i class="fas fa-server me-2" title="Server" aria-label="Server"></i>';
+        if (kind === 'dev-server') return '<i class="fas fa-code me-2 text-warning" title="Development Server" aria-label="Development Server"></i>';
         return '<i class="fas fa-cogs me-2" title="Worker" aria-label="Worker"></i>';
     }
 

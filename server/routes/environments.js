@@ -2481,7 +2481,8 @@ function getCanonicalProcessNames() {
         'medpro-satisfaction-surveys',
         'medpro-communication-worker',
         'medpro-etl-worker',
-        'medpro-batch-signing'
+        'medpro-batch-signing',
+        'medpro-frontend-dev'
     ];
 }
 
