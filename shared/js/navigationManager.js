@@ -67,6 +67,16 @@ class NavigationManager {
                 title: 'Environments',
                 breadcrumb: ['Environment Management', 'Environments']
             },
+            'environments-monitor': {
+                section: 'environment',
+                title: 'Monitor',
+                breadcrumb: ['Environment Management', 'Monitor']
+            },
+            'environments-workers': {
+                section: 'environment',
+                title: 'Workers',
+                breadcrumb: ['Environment Management', 'Workers']
+            },
             'database-management': {
                 section: 'environment',
                 title: 'Database Management',
@@ -332,6 +342,8 @@ class NavigationManager {
             '/medproadmin/migration/jobs.html': 'migration-jobs',
             '/medproadmin/migration/executions.html': 'migration-executions',
             '/medproadmin/environments/$': 'environments',
+            '/medproadmin/environments/monitor.html$': 'environments-monitor',
+            '/medproadmin/environments/workers.html$': 'environments-workers',
             '/medproadmin/database-management/$': 'database-management',
             '/medproadmin/users/$': 'user-management',
             '/medproadmin/audit-log/$': 'audit-log',

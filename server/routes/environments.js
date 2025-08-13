@@ -11,6 +11,7 @@ const si = require('systeminformation');
 const osUtils = require('node-os-utils');
 const pidusage = require('pidusage');
 const fs = require('fs').promises;
+const axios = require('axios');
 
 // Encryption helpers
 const algorithm = 'aes-256-cbc';
@@ -2431,6 +2432,271 @@ router.get('/:id/monitor/analytics', verifyToken, requirePermission('can_manage_
             success: false,
             error: 'Failed to retrieve analytics data'
         });
+    }
+});
+
+// ===================== WORKERS (PM2) MANAGEMENT PROXY =====================
+
+async function getEnvironmentBaseUrl(envId) {
+    const envQuery = 'SELECT api_base_url, env_name FROM environments WHERE id = ? AND is_active = 1';
+    const envs = await executeQuery(adminPool, envQuery, [envId]);
+    if (!envs.length || !envs[0].api_base_url) {
+        const name = envs.length ? envs[0].env_name : envId;
+        throw new Error(`Environment ${name} not configured with api_base_url`);
+    }
+    return envs[0].api_base_url.replace(/\/$/, '');
+}
+
+function buildAdminHeaders() {
+    const adminApiKey = process.env.MEDPRO_ADMIN_API_KEY;
+    if (!adminApiKey) throw new Error('MEDPRO_ADMIN_API_KEY not configured in MedProAdmin');
+    return {
+        'User-Agent': 'MedProAdmin/WorkersProxy',
+        'X-Admin-API-Key': adminApiKey,
+        'Connection': 'close'
+    };
+}
+
+async function resolveRemotePm2Path(environmentId, connectionPoolManager) {
+    const composite = [
+        'command -v pm2',
+        'command -v /opt/homebrew/bin/pm2',
+        'command -v /usr/local/bin/pm2',
+        'command -v ~/.npm-global/bin/pm2',
+        'ls -1 ~/.nvm/versions/node/*/bin/pm2 2>/dev/null | tail -1'
+    ].join(' || ');
+    const result = await connectionPoolManager.executeCommand(String(environmentId), `bash -lc "${composite}"`, { timeout: 8000 });
+    if (!result.success) throw new Error(result.stderr || 'Failed to resolve pm2 path');
+    const pm2Path = (result.stdout || '').trim();
+    if (!pm2Path) throw new Error('pm2 not found on remote PATH');
+    return pm2Path;
+}
+
+// Canonical process set for demo management
+function getCanonicalProcessNames() {
+    return [
+        'medpro-backend',
+        'medpro-message-server',
+        'medpro-prescription-agenda',
+        'medpro-satisfaction-surveys',
+        'medpro-communication-worker',
+        'medpro-etl-worker',
+        'medpro-batch-signing'
+    ];
+}
+
+function formatPm2ProcessFromJlist(proc) {
+    const env = proc?.pm2_env || {};
+    const monit = proc?.monit || {};
+    return {
+        name: env.name || proc?.name || '',
+        status: env.status || 'unknown',
+        restarts: env.restart_time || 0,
+        cpu: typeof monit.cpu === 'number' ? monit.cpu : 0,
+        memory: typeof monit.memory === 'number' ? monit.memory : 0,
+        uptime: env.pm_uptime || null,
+        out_log_path: env.pm_out_log_path || '',
+        error_log_path: env.pm_err_log_path || ''
+    };
+}
+
+function mergeWithCanonical(list) {
+    const canonical = getCanonicalProcessNames();
+    const byName = new Map();
+    (list || []).forEach((p) => { if (p?.name) byName.set(p.name, p); });
+    canonical.forEach((name) => {
+        if (!byName.has(name)) {
+            byName.set(name, { name, status: 'stopped', restarts: 0, cpu: 0, memory: 0, uptime: null });
+        }
+    });
+    return Array.from(byName.values());
+}
+// GET /api/v1/environments/:id/workers - list PM2 processes
+router.get('/:id/workers', verifyToken, requirePermission('can_manage_environments'), async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Primary: query MedPro backend admin API
+        const baseUrl = await getEnvironmentBaseUrl(id);
+        try {
+            const response = await axios.get(`${baseUrl}/api/admin/pm2/list`, {
+                timeout: 6000,
+                headers: buildAdminHeaders(),
+                httpAgent: new require('http').Agent({ keepAlive: false }),
+                httpsAgent: new require('https').Agent({ keepAlive: false })
+            });
+            const backendList = Array.isArray(response.data?.data) ? response.data.data : [];
+            return res.json({ success: true, data: mergeWithCanonical(backendList) });
+        } catch (primaryError) {
+            logger.warn(`Primary PM2 list via API failed for env ${id}: ${primaryError.message}`);
+            // Fallback: SSH and run pm2 jlist remotely
+            try {
+                const connectionPoolManager = require('../services/connectionPoolManager');
+                // Ensure pool exists (simple default config via environment table)
+                // Expect SSH config stored in environments.environment_metadata JSON
+                const [envRow] = await executeQuery(adminPool, 'SELECT environment_metadata FROM environments WHERE id=?', [id]);
+                const meta = envRow?.environment_metadata && typeof envRow.environment_metadata === 'string' ? JSON.parse(envRow.environment_metadata) : envRow?.environment_metadata || {};
+                const sshConfig = meta?.ssh || {};
+                if (!connectionPoolManager.getPoolStats(String(id))) {
+                    await connectionPoolManager.initializePool(String(id), { ssh: sshConfig });
+                }
+                const pm2Path = await resolveRemotePm2Path(id, connectionPoolManager);
+                const nodeBinDir = pm2Path.replace(/\/pm2$/, '');
+                const result = await connectionPoolManager.executeCommand(
+                    String(id),
+                    `bash -lc "export PATH=\"${nodeBinDir}:$PATH\"; ${pm2Path} jlist"`,
+                    { timeout: 8000, workingDirectory: sshConfig?.app_dir }
+                );
+                if (!result.success) throw new Error(result.stderr || 'pm2 jlist failed');
+                const raw = JSON.parse(result.stdout || '[]');
+                const formatted = Array.isArray(raw) ? raw.map(formatPm2ProcessFromJlist) : [];
+                return res.json({ success: true, data: mergeWithCanonical(formatted) });
+            } catch (sshError) {
+                logger.error(`Fallback PM2 list via SSH failed for env ${id}: ${sshError.message}`);
+                return res.status(500).json({ success: false, error: 'Failed to fetch workers list (API and SSH failed)' });
+            }
+        }
+    } catch (error) {
+        logger.error('Failed to fetch workers list:', error.message);
+        return res.status(500).json({ success: false, error: 'Failed to fetch workers list' });
+    }
+});
+
+// POST /api/v1/environments/:id/workers/:name/:action - control PM2 process
+router.post('/:id/workers/:name/:action', verifyToken, requirePermission('can_manage_environments'), async (req, res) => {
+    const { id, name, action } = req.params;
+    try {
+        const baseUrl = await getEnvironmentBaseUrl(id);
+        try {
+            const response = await axios.post(`${baseUrl}/api/admin/pm2/${encodeURIComponent(name)}/${encodeURIComponent(action)}`, null, {
+                timeout: 8000,
+                headers: buildAdminHeaders(),
+                httpAgent: new require('http').Agent({ keepAlive: false }),
+                httpsAgent: new require('https').Agent({ keepAlive: false })
+            });
+            return res.json(response.data);
+        } catch (primaryError) {
+            logger.warn(`Primary PM2 control via API failed for env ${id}: ${primaryError.message}`);
+            // Fallback via SSH
+            try {
+                const connectionPoolManager = require('../services/connectionPoolManager');
+                const [envRow] = await executeQuery(adminPool, 'SELECT environment_metadata FROM environments WHERE id=?', [id]);
+                const meta = envRow?.environment_metadata && typeof envRow.environment_metadata === 'string' ? JSON.parse(envRow.environment_metadata) : envRow?.environment_metadata || {};
+                const sshConfig = meta?.ssh || {};
+                if (!connectionPoolManager.getPoolStats(String(id))) {
+                    await connectionPoolManager.initializePool(String(id), { ssh: sshConfig });
+                }
+                const pm2Path = await resolveRemotePm2Path(id, connectionPoolManager);
+                const nodeBinDir = pm2Path.replace(/\/pm2$/, '');
+                const cmd = action === 'start'
+                    ? `bash -lc "export PATH=\"${nodeBinDir}:$PATH\"; ${pm2Path} start ecosystem.config.js --only ${name}"`
+                    : `bash -lc "export PATH=\"${nodeBinDir}:$PATH\"; ${pm2Path} ${action} ${name}"`;
+                const result = await connectionPoolManager.executeCommand(String(id), cmd, { timeout: 12000, workingDirectory: (sshConfig && sshConfig.app_dir) ? sshConfig.app_dir : undefined });
+                if (!result.success) throw new Error(result.stderr || 'pm2 control failed');
+                // Return updated jlist
+                const listRes = await connectionPoolManager.executeCommand(
+                    String(id),
+                    `bash -lc "export PATH=\"${nodeBinDir}:$PATH\"; ${pm2Path} jlist"`,
+                    { timeout: 8000, workingDirectory: (sshConfig && sshConfig.app_dir) ? sshConfig.app_dir : undefined }
+                );
+                const list = listRes.success ? JSON.parse(listRes.stdout || '[]') : [];
+                return res.json({ success: true, data: list.find(p => p.name === name) || { name, status: 'unknown' } });
+            } catch (sshError) {
+                logger.error(`Fallback PM2 control via SSH failed for env ${id}: ${sshError.message}`);
+                return res.status(500).json({ success: false, error: 'Failed to control worker (API and SSH failed)' });
+            }
+        }
+    } catch (error) {
+        logger.error('Failed to control worker:', error.message);
+        return res.status(500).json({ success: false, error: 'Failed to control worker' });
+    }
+});
+
+// GET /api/v1/environments/:id/workers/:name/logs
+router.get('/:id/workers/:name/logs', verifyToken, requirePermission('can_manage_environments'), async (req, res) => {
+    try {
+        const { id, name } = req.params;
+        const { lines = 200, type = 'both', parsed, insights } = req.query;
+        const baseUrl = await getEnvironmentBaseUrl(id);
+        try {
+            const response = await axios.get(`${baseUrl}/api/admin/pm2/${encodeURIComponent(name)}/logs`, {
+                params: { lines, type },
+                timeout: 8000,
+                headers: buildAdminHeaders(),
+                httpAgent: new require('http').Agent({ keepAlive: false }),
+                httpsAgent: new require('https').Agent({ keepAlive: false })
+            });
+            if (insights) {
+                const { getInsightsBuilderFor } = require('../services/logParsers');
+                const builder = getInsightsBuilderFor(name);
+                const data = response.data?.data || {};
+                const out = Array.isArray(data.out) ? data.out : [];
+                const err = Array.isArray(data.err) ? data.err : [];
+                const insightsData = builder.build([...out, ...err]);
+                return res.json({ success: true, data: { name, insights: insightsData } });
+            }
+            if (parsed) {
+                const { getParserFor } = require('../services/logParsers');
+                const parser = getParserFor(name);
+                const data = response.data?.data || {};
+                const out = Array.isArray(data.out) ? data.out : [];
+                const err = Array.isArray(data.err) ? data.err : [];
+                const parsedEntries = parser.parse([...out, ...err]);
+                return res.json({ success: true, data: { name, entries: parsedEntries } });
+            }
+            return res.json(response.data);
+        } catch (primaryError) {
+            logger.warn(`Primary PM2 logs via API failed for env ${id}: ${primaryError.message}`);
+            // Fallback via SSH tailing log files: try pm2 info to get log paths then tail
+            try {
+                const connectionPoolManager = require('../services/connectionPoolManager');
+                const [envRow] = await executeQuery(adminPool, 'SELECT environment_metadata FROM environments WHERE id=?', [id]);
+                const meta = envRow?.environment_metadata && typeof envRow.environment_metadata === 'string' ? JSON.parse(envRow.environment_metadata) : envRow?.environment_metadata || {};
+                const sshConfig = meta?.ssh || {};
+                if (!connectionPoolManager.getPoolStats(String(id))) {
+                    await connectionPoolManager.initializePool(String(id), { ssh: sshConfig });
+                }
+                const pm2Path = await resolveRemotePm2Path(id, connectionPoolManager);
+                const nodeBinDir = pm2Path.replace(/\/pm2$/, '');
+                const info = await connectionPoolManager.executeCommand(
+                    String(id),
+                    `bash -lc "export PATH=\"${nodeBinDir}:$PATH\"; ${pm2Path} jlist"`
+                );
+                let out = [], err = [];
+                if (info.success) {
+                    const list = JSON.parse(info.stdout || '[]');
+                    const proc = list.find(p => p.name === name) || {};
+                    const outPath = proc.pm2_env?.pm_out_log_path;
+                    const errPath = proc.pm2_env?.pm_err_log_path;
+                    if (type === 'out' || type === 'both') {
+                        const r = await connectionPoolManager.executeCommand(String(id), `bash -lc "tail -n ${parseInt(lines)} ${outPath || '/dev/null'}"`);
+                        if (r.success) out = r.stdout.split('\n').filter(Boolean);
+                    }
+                    if (type === 'err' || type === 'both') {
+                        const r2 = await connectionPoolManager.executeCommand(String(id), `bash -lc "tail -n ${parseInt(lines)} ${errPath || '/dev/null'}"`);
+                        if (r2.success) err = r2.stdout.split('\n').filter(Boolean);
+                    }
+                }
+                if (insights) {
+                    const { getInsightsBuilderFor } = require('../services/logParsers');
+                    const builder = getInsightsBuilderFor(name);
+                    const insightsData = builder.build([...out, ...err]);
+                    return res.json({ success: true, data: { name, insights: insightsData } });
+                }
+                if (parsed) {
+                    const { getParserFor } = require('../services/logParsers');
+                    const parser = getParserFor(name);
+                    const parsedEntries = parser.parse([...out, ...err]);
+                    return res.json({ success: true, data: { name, entries: parsedEntries } });
+                }
+                return res.json({ success: true, data: { name, out, err } });
+            } catch (sshError) {
+                logger.error(`Fallback PM2 logs via SSH failed for env ${id}: ${sshError.message}`);
+                return res.status(500).json({ success: false, error: 'Failed to fetch worker logs (API and SSH failed)' });
+            }
+        }
+    } catch (error) {
+        logger.error('Failed to fetch worker logs:', error.message);
+        return res.status(500).json({ success: false, error: 'Failed to fetch worker logs' });
     }
 });
 

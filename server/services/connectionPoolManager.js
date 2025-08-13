@@ -1,4 +1,5 @@
 const { NodeSSH } = require('node-ssh');
+const fs = require('fs');
 const logger = require('../utils/logger');
 const { executeQuery } = require('../config/database');
 
@@ -483,7 +484,27 @@ class ConnectionPoolManager {
             
             // Add authentication
             if (config.auth_method === 'key') {
-                connectOptions.privateKey = config.key_path;
+                try {
+                    // Expand ~ in key path
+                    let keyPath = config.key_path;
+                    if (keyPath && keyPath.startsWith('~')) {
+                        keyPath = require('path').join(require('os').homedir(), keyPath.slice(1));
+                    }
+                    // Read private key from path if provided
+                    if (keyPath && fs.existsSync(keyPath)) {
+                        connectOptions.privateKey = fs.readFileSync(keyPath, 'utf8');
+                    } else if (config.private_key) {
+                        // Or use raw private key string
+                        connectOptions.privateKey = config.private_key;
+                    } else {
+                        throw new Error('SSH key authentication selected but no key_path/private_key provided');
+                    }
+                    if (config.key_passphrase) {
+                        connectOptions.passphrase = config.key_passphrase;
+                    }
+                } catch (e) {
+                    throw new Error(`Failed to load SSH private key: ${e.message}`);
+                }
             } else if (config.auth_method === 'password') {
                 connectOptions.password = config.password;
             }
@@ -495,6 +516,7 @@ class ConnectionPoolManager {
                 logger.warn(`Jump host configuration detected but not yet implemented for ${environmentId}`);
             }
             
+            logger.info(`SSH connecting: ${connectOptions.username}@${connectOptions.host}:${connectOptions.port || 22}`);
             await ssh.connect(connectOptions);
             
             const connection = {
